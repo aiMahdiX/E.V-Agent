@@ -1,0 +1,8 @@
+{
+  "_name": "Game control MCP server skeleton — implement join/send. Disabled by default.",
+  "name": "game",
+  "enabled": false,
+  "command": "python3",
+  "args": ["server.py"],
+  "cwd": "mcp_servers/game"
+}

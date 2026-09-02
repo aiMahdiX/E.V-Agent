@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>E.V. — Console</title>
+<link rel="stylesheet" href="/static/hud.css?v=5">
+</head>
+<body data-state="idle">
+
+<!-- boot splash -->
+<div id="boot">
+  <div class="boot-core"></div>
+  <div class="boot-lines" id="bootLines"></div>
+</div>
+
+<canvas id="stars"></canvas>
+<div id="hud">
+
+  <!-- ============ toolbar ============ -->
+  <header id="topbar">
+    <div class="brand">
+      <span class="dot"></span> E.V.
+      <small>Local Multimodal OS Agent</small>
+    </div>
+    <div class="model-ctl">
+      <select id="modelSel" title="مدل زبان"></select>
+      <button id="ttsToggle" title="صدا">🔊</button>
+      <button id="themeToggle" title="تم روشن/تاریک">☀️</button>
+      <span id="stateBadge">آماده</span>
+    </div>
+  </header>
+
+  <!-- ============ main grid ============ -->
+  <main id="grid">
+
+    <!-- system telemetry -->
+    <aside id="leftPanel" class="panel">
+      <h3>وضعیت سیستم</h3>
+      <div class="meter"><label>CPU</label><div class="bar"><i id="mCpu"></i></div><span id="vCpu">–</span></div>
+      <div class="meter"><label>RAM</label><div class="bar"><i id="mRam"></i></div><span id="vRam">–</span></div>
+      <div class="meter"><label>GPU</label><div class="bar"><i id="mGpu"></i></div><span id="vGpu">–</span></div>
+      <div class="meter"><label>VRAM</label><div class="bar"><i id="mVram"></i></div><span id="vVram">–</span></div>
+      <div class="meter"><label>DISK</label><div class="bar"><i id="mDisk"></i></div><span id="vDisk">–</span></div>
+      <div id="gpuTemp" class="chip">GPU: —</div>
+    </aside>
+
+    <!-- chat — the hero -->
+    <section id="chat">
+      <div id="chatHead">
+        <span class="dot"></span><b>گفتگو با E.V.</b>
+        <small>Space برای ضبط صدا · Ctrl+K برای فوکوس</small>
+      </div>
+
+      <div id="log" aria-live="polite"></div>
+
+      <!-- live status dock: core orb + voice waveform -->
+      <div id="coreDock">
+        <div id="coreWrap">
+          <div class="ring r1"></div>
+          <div class="ring r2"></div>
+          <div class="ring r3"></div>
+          <canvas id="core"></canvas>
+          <div id="coreLabel">E.V.</div>
+        </div>
+        <canvas id="wave"></canvas>
+      </div>
+
+      <form id="composer">
+        <button type="button" id="micBtn" title="گفتار (نگه دار و صحبت کن)">🎙</button>
+        <input id="msg" type="text" placeholder="درخواستت را بنویس…" autocomplete="off">
+        <button type="submit" id="sendBtn">ارسال ⏎</button>
+      </form>
+    </section>
+
+    <!-- agent activity timeline -->
+    <aside id="rightPanel" class="panel">
+      <h3>فعالیت عامل</h3>
+      <ul id="stepFeed"></ul>
+    </aside>
+  </main>
+
+  <!-- ============ status bar ============ -->
+  <footer id="bottombar">
+    <span id="clock">--:--:--</span>
+    <span id="hostInfo">—</span>
+    <span id="voiceHint">🎙 میکروفن: دکمه را بگیر و صحبت کن</span>
+  </footer>
+</div>
+
+<script src="/static/hud.js?v=5"></script>
+</body>
+</html>

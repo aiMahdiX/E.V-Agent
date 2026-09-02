@@ -1,0 +1,122 @@
+{
+  "agent": {
+    "name": "E.V.",
+    "user_name": "Mahdi",
+    "language": "Persian",
+    "max_react_iterations": 12,
+    "timeout": 180,
+    "advisory_auto_approve": false,
+    "data_dir": "data",
+    "turbo_threshold": 0.3
+  },
+  "ollama": {
+    "host": "http://localhost:11434",
+    "timeout": 300,
+    "cloud_timeout": 90,
+    "fallback": "gemma3:1b-it-q4_K_M",
+    "keep_alive": "30m",
+    "think": false,
+    "max_tokens": 512,
+    "min_tokens": 128,
+    "num_ctx": 8192,
+    "models": {
+      "fast": "qwen3.5:4b",
+      "main": "qwen3.5:4b",
+      "vision": "qwen3.5:4b"
+    },
+    "default": "minimax-m3:cloud"
+  },
+  "model_selection": {
+    "mode": "fixed",
+    "fixed": "minimax-m3:cloud",
+    "include_cloud": true
+  },
+  "voice": {
+    "enabled": true,
+    "wake_words": [
+      "e.v",
+      "ای وی"
+    ],
+    "stt_backend": "vosk",
+    "stt_model": "data/models/vosk-model-small-fa-0.5",
+    "tts_backend": "piper",
+    "tts_voice": "fa_IR-amir-medium",
+    "tts_piper_model": "data/models/piper/fa_IR-amir-medium.onnx"
+  },
+  "web": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 8765
+  },
+  "memory": {
+    "short_term_max_messages": 10,
+    "long_term_db": "data/ev.db"
+  },
+  "tools": {
+    "native": {
+      "shell": {
+        "priority": 100
+      },
+      "filesystem": {
+        "priority": 95
+      },
+      "process": {
+        "priority": 90
+      },
+      "services": {
+        "priority": 85
+      },
+      "gpu": {
+        "priority": 80
+      }
+    },
+    "mcp": {
+      "game_control": {
+        "priority": 80,
+        "server": "game",
+        "tools": [
+          "game_move",
+          "game_action"
+        ],
+        "needs_approval": true
+      },
+      "browser": {
+        "priority": 70,
+        "server": "browser",
+        "tools": [
+          "browser_open",
+          "browser_click",
+          "browser_read",
+          "browser_type",
+          "browser_screenshot"
+        ],
+        "needs_approval": true
+      },
+      "vision": {
+        "priority": 90,
+        "server": "vision",
+        "tools": [
+          "vision_capture",
+          "vision_describe"
+        ],
+        "needs_approval": false
+      }
+    },
+    "mcp_dir": "mcp_servers"
+  },
+  "providers": {
+    "default": "ollama:minimax-m3:cloud",
+    "alternates": [
+      "ollama:qwen3:4b"
+    ]
+  },
+  "security": {
+    "auto_approve_until_level": 3,
+    "require_confirm_for_unknown_host": true,
+    "sudo_via_pkexec": true
+  },
+  "logging": {
+    "dir": "data/logs",
+    "audit_enabled": true
+  }
+}

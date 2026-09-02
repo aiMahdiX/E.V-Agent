@@ -1,0 +1,1 @@
+# tools.mcp package — Model Context Protocol client layer.

@@ -1,0 +1,8 @@
+{
+  "_name": "Browser MCP server (Phase 3).",
+  "name": "browser",
+  "enabled": true,
+  "command": "python3",
+  "args": ["server.py"],
+  "cwd": "mcp_servers/browser"
+}

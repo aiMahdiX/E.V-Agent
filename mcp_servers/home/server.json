@@ -1,0 +1,8 @@
+{
+  "_name": "Home automation MCP server (Phase 5). Disabled by default.",
+  "name": "home",
+  "enabled": false,
+  "command": "python3",
+  "args": ["server.py"],
+  "cwd": "mcp_servers/home"
+}

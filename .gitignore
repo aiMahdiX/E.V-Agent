@@ -1,0 +1,18 @@
+# python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# runtime data (models are downloaded by scripts, not committed)
+data/models/
+data/logs/
+data/ev.db
+data/camera/
+data/screenshots/
+*.db
+*.sqlite3
+
+# editor / os
+.vscode/
+.DS_Store
