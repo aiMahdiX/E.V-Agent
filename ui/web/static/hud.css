@@ -65,9 +65,10 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 #boot {
   position: fixed; inset: 0; z-index: 100; background: var(--ev-bg);
   display: flex; flex-direction: column; gap: 24px;
-  align-items: center; justify-content: center; transition: opacity .5s;
+  align-items: center; justify-content: center;
+  transition: opacity .5s, visibility 0s .6s;
 }
-#boot.done { opacity: 0; pointer-events: none; }
+#boot.done { opacity: 0; visibility: hidden; pointer-events: none; }
 .boot-core {
   width: 54px; height: 54px; border-radius: 14px;
   border: 1.5px solid var(--ev-primary);
@@ -90,14 +91,16 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 }
 .tb-side { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
 .tb-side:last-child { gap: 6px; }
-#topbar button {
+/* icon buttons are opt-in via .tb-icon — never style bare #topbar button,
+   or the model dropdown items (inside the topbar) get squashed too. */
+.tb-icon {
   width: 30px; height: 30px; flex: none; border-radius: var(--r-sm);
   border: 1px solid transparent; color: var(--ev-muted);
   display: grid; place-items: center; font-size: 14px;
   transition: all var(--tr);
 }
-#topbar button:hover { background: var(--ev-surface-2); color: var(--ev-text);
-                       border-color: var(--ev-border); }
+.tb-icon:hover { background: var(--ev-surface-2); color: var(--ev-text);
+                 border-color: var(--ev-border); }
 #sbToggle { font-size: 15px; }
 .brand { display: flex; align-items: center; gap: 9px; }
 .brand .mark { color: var(--ev-primary); font-size: 19px;
@@ -106,8 +109,6 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .brand-txt small { display: block; color: var(--ev-muted); font-size: 10px; }
 
 /* ---------- model dropdown ---------- */
-/* NOTE: #modelBtn is a button inside #topbar — it must override the
-   30px icon-button width or its label collapses onto the side icons. */
 #modelDrop {
   position: relative; flex: none;
   padding-inline-end: 10px; margin-inline-end: 2px;
@@ -131,11 +132,14 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
              text-overflow: ellipsis; white-space: nowrap; }
 .caret { color: var(--ev-muted); font-size: 10px; }
 #modelMenu {
-  position: absolute; top: calc(100% + 6px); inset-inline-start: 0;
+  position: absolute; top: calc(100% + 6px);
+  /* anchor to the inline-END edge so the menu opens INTO the page
+     (RTL: grows left→right, away from the topbar icon cluster) */
+  inset-inline-start: auto; inset-inline-end: 0;
   width: 280px; max-width: min(280px, calc(100vw - 28px));
-  max-height: 380px; overflow-y: auto;
+  max-height: 440px; overflow-y: auto; padding-bottom: 6px;
   background: var(--ev-surface-2); border: 1px solid var(--ev-border);
-  border-radius: var(--r-md); box-shadow: var(--shadow); padding: 5px;
+  border-radius: var(--r-md); box-shadow: var(--shadow); padding-top: 5px;
   z-index: 50;
 }
 .mm-title {

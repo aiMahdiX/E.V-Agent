@@ -52,6 +52,11 @@ const STATE_COLOR = {
     } else {
       setTimeout(() => document.getElementById("boot").classList.add("done"),
                  380);
+      // hard fallback: the fade is cosmetic — never let the overlay linger
+      setTimeout(() => {
+        const b = document.getElementById("boot");
+        if (b) b.style.display = "none";
+      }, 1100);
     }
   };
   setTimeout(tick, 180);

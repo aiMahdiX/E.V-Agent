@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark">
 <title>E.V. — Local Multimodal OS Agent</title>
-<link rel="stylesheet" href="/static/hud.css?v=10">
+<link rel="stylesheet" href="/static/hud.css?v=12">
 </head>
 <body data-state="idle">
 
@@ -21,7 +21,7 @@
   <!-- ================= top bar ================= -->
   <header id="topbar">
     <div class="tb-side">
-      <button id="sbToggle" title="نوار کنار (Ctrl+B)" aria-label="نمایش نوار کنار">☰</button>
+      <button id="sbToggle" class="tb-icon" title="نوار کنار (Ctrl+B)" aria-label="نمایش نوار کنار">☰</button>
       <div class="brand">
         <span class="mark">◈</span>
         <div class="brand-txt"><b>E.V.</b><small>Local Multimodal OS Agent</small></div>
@@ -34,9 +34,9 @@
         </button>
         <div id="modelMenu" hidden></div>
       </div>
-      <button id="ttsToggle" title="صدا">🔊</button>
-      <button id="themeToggle" title="تم روشن/تاریک">☀️</button>
-      <button id="paletteBtn" title="پالت فرمان (Ctrl+K)">⌕</button>
+      <button id="ttsToggle" class="tb-icon" title="صدا">🔊</button>
+      <button id="themeToggle" class="tb-icon" title="تم روشن/تاریک">☀️</button>
+      <button id="paletteBtn" class="tb-icon" title="پالت فرمان (Ctrl+K)">⌕</button>
     </div>
     <select id="modelSel" hidden aria-hidden="true" tabindex="-1"></select>
   </header>
