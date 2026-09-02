@@ -144,17 +144,7 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .mm-tag { font-size: 10px; color: var(--ev-muted); }
 
 /* ---------- state pill ---------- */
-#stateBadge {
-  border: 1px solid var(--ev-border); border-radius: 999px;
-  padding: 5px 12px; font-size: 11.5px; color: var(--ev-muted);
-  background: var(--ev-surface-2); min-width: 76px; text-align: center;
-  transition: all .3s; white-space: nowrap;
-}
-body[data-state="listening"] #stateBadge,
-body[data-state="awaiting"]  #stateBadge { color: var(--ev-warning); border-color: var(--ev-warning); }
-body[data-state="thinking"]  #stateBadge { color: var(--ev-primary); border-color: var(--ev-primary); }
-body[data-state="speaking"]  #stateBadge { color: var(--ev-success); border-color: var(--ev-success); }
-body[data-state="error"]     #stateBadge { color: var(--ev-danger);  border-color: var(--ev-danger); }
+/* state is shown once — in the E.V. CORE panel (#coreState) */
 
 /* ---------- main grid ---------- */
 #grid {

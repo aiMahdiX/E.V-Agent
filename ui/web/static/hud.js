@@ -16,14 +16,9 @@ const EV = {
   setState(s) {
     this.state = s;
     document.body.dataset.state = s;
-    const fa = { idle: "آماده", listening: "در حال شنیدن",
-      thinking: "در حال فکر", speaking: "در حال صحبت",
-      awaiting: "در انتظار تأیید", error: "خطا" };
     const en = { idle: "READY", listening: "LISTENING",
       thinking: "THINKING", speaking: "SPEAKING",
       awaiting: "AWAITING APPROVAL", error: "ERROR" };
-    const badge = document.getElementById("stateBadge");
-    if (badge) badge.textContent = fa[s] || s;
     const core = document.getElementById("coreState");
     if (core) core.textContent = en[s] || s.toUpperCase();
   },
