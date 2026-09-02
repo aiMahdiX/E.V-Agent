@@ -458,6 +458,8 @@ body[data-state="error"] #coreState { color: var(--ev-danger); }
   display: flex; align-items: flex-start; justify-content: center;
   padding-top: 12vh; backdrop-filter: blur(3px);
 }
+/* display:flex would override the [hidden] UA rule — keep it explicit */
+#palette[hidden], #modelMenu[hidden] { display: none; }
 .pal-box {
   width: min(560px, 92vw); background: var(--ev-surface-2);
   border: 1px solid var(--ev-border); border-radius: var(--r-lg);
