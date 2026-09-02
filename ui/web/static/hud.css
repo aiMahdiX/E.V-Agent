@@ -126,30 +126,40 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   background: var(--ev-success); box-shadow: 0 0 6px var(--ev-success);
 }
 .mdot.cloud { background: var(--ev-warning); box-shadow: 0 0 6px var(--ev-warning); }
+.mdot.auto  { background: var(--ev-primary); box-shadow: 0 0 6px var(--ev-primary-soft); }
 #modelName { direction: ltr; max-width: 190px; overflow: hidden;
              text-overflow: ellipsis; white-space: nowrap; }
 .caret { color: var(--ev-muted); font-size: 10px; }
 #modelMenu {
   position: absolute; top: calc(100% + 6px); inset-inline-start: 0;
-  width: 270px; max-width: min(270px, calc(100vw - 28px));
-  max-height: 340px; overflow-y: auto;
+  width: 280px; max-width: min(280px, calc(100vw - 28px));
+  max-height: 380px; overflow-y: auto;
   background: var(--ev-surface-2); border: 1px solid var(--ev-border);
-  border-radius: var(--r-md); box-shadow: var(--shadow); padding: 6px;
+  border-radius: var(--r-md); box-shadow: var(--shadow); padding: 5px;
   z-index: 50;
 }
-.mm-title { font-size: 10px; letter-spacing: .18em; color: var(--ev-muted);
-            padding: 6px 9px 8px; }
-.mm-item {
-  display: flex; align-items: center; gap: 9px; width: 100%;
-  padding: 8px 9px; border-radius: var(--r-sm); text-align: start;
-  transition: background var(--tr);
+.mm-title {
+  font-size: 9.5px; letter-spacing: .2em; color: var(--ev-muted);
+  padding: 8px 10px 4px; font-weight: 600;
 }
-.mm-item:hover { background: var(--ev-primary-soft); }
+.mm-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 10px; border-radius: var(--r-sm); text-align: start;
+  border: 1px solid transparent; transition: background var(--tr), border-color var(--tr);
+}
+.mm-item:hover { background: var(--ev-surface); border-color: var(--ev-border); }
 .mm-item.cur { background: var(--ev-primary-soft); }
-.mm-name { flex: 1; font-size: 12px; overflow: hidden;
-           text-overflow: ellipsis; white-space: nowrap; }
-.mm-item.cur .mm-name { color: var(--ev-primary); }
-.mm-tag { font-size: 10px; color: var(--ev-muted); }
+.mm-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.mm-name {
+  font-family: var(--mono); font-size: 11.5px; direction: ltr; text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mm-item.cur .mm-name { color: var(--ev-primary); font-weight: 600; }
+.mm-sub { font-size: 9.5px; color: var(--ev-muted); direction: ltr; text-align: left; }
+.mm-check { flex: none; width: 14px; text-align: center; font-size: 11px;
+            color: var(--ev-primary); visibility: hidden; }
+.mm-item.cur .mm-check { visibility: visible; }
+.mm-empty { padding: 8px 10px; font-size: 11px; color: var(--ev-muted); }
 
 /* ---------- state pill ---------- */
 /* state is shown once — in the E.V. CORE panel (#coreState) */

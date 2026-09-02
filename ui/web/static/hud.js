@@ -698,25 +698,55 @@ function renderModelDrop(info) {
   modelInfo = info;
   const cur = info.mode === "fixed" && info.current ? info.current : "auto";
   modelName.textContent = cur === "auto" ? "— auto —" : cur;
-  modelBtn.querySelector(".mdot").classList.toggle("cloud",
-    cur !== "auto" && isCloud(cur));
+  const dot = modelBtn.querySelector(".mdot");
+  dot.classList.toggle("cloud", cur !== "auto" && isCloud(cur));
+  dot.classList.toggle("auto", cur === "auto");
 
-  const opts = ["auto", ...(info.pool || []), ...(info.available || [])];
-  modelMenu.innerHTML = `<div class="mm-title">MODELS</div>`;
-  for (const m of [...new Set(opts)]) {
+  const all = [...new Set([...(info.pool || []), ...(info.available || [])])]
+    .filter(m => m !== "auto");
+  const locals = all.filter(m => !isCloud(m));
+  const clouds = all.filter(m => isCloud(m));
+
+  modelMenu.innerHTML = "";
+  const section = (label) => {
+    const h = document.createElement("div");
+    h.className = "mm-title";
+    h.textContent = label;
+    modelMenu.appendChild(h);
+  };
+  const item = (m, sub) => {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "mm-item" + (m === cur ? " cur" : "");
     b.innerHTML =
-      `<span class="mdot ${m !== "auto" && isCloud(m) ? "cloud" : ""}"></span>` +
-      `<span class="mm-name ltr">${escapeHtml(m === "auto" ? "— auto —" : m)}</span>` +
-      `<span class="mm-tag">${m === "auto" ? "ROUTER" : isCloud(m) ? "Cloud" : "Local"}</span>`;
+      `<span class="mm-txt">` +
+      `<span class="mm-name" title="${escapeHtml(m)}">${escapeHtml(m)}</span>` +
+      `<span class="mm-sub">${escapeHtml(sub)}</span></span>` +
+      `<span class="mm-check">✓</span>`;
     b.addEventListener("click", () => setModel(m));
     modelMenu.appendChild(b);
+  };
+
+  section("MODELS");
+  item("auto", "router picks per task");
+  if (locals.length) {
+    section("LOCAL · " + locals.length);
+    locals.forEach(m => item(m, "Local · ollama"));
   }
+  if (clouds.length) {
+    section("CLOUD · " + clouds.length);
+    clouds.forEach(m => item(m, "Cloud · ollama.com"));
+  }
+  if (!all.length) {
+    const d = document.createElement("div");
+    d.className = "mm-empty";
+    d.textContent = "مدل دیگری نصب نیست";
+    modelMenu.appendChild(d);
+  }
+
   // hidden native select stays in sync (keyboard fallback)
   modelSel.innerHTML = "";
-  for (const m of [...new Set(opts)]) {
+  for (const m of ["auto", ...all]) {
     const o = document.createElement("option");
     o.value = m;
     o.textContent = m;
