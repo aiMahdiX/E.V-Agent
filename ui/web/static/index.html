@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark">
-<title>E.V. — Console</title>
-<link rel="stylesheet" href="/static/hud.css?v=5">
+<title>E.V. — Local Multimodal OS Agent</title>
+<link rel="stylesheet" href="/static/hud.css?v=6">
 </head>
 <body data-state="idle">
 
@@ -16,79 +16,135 @@
 </div>
 
 <canvas id="stars"></canvas>
-<div id="hud">
 
-  <!-- ============ toolbar ============ -->
+<div id="hud">
+  <!-- ================= top bar ================= -->
   <header id="topbar">
-    <div class="brand">
-      <span class="dot"></span> E.V.
-      <small>Local Multimodal OS Agent</small>
+    <div class="tb-side">
+      <button id="sbToggle" title="نوار کنار (Ctrl+B)" aria-label="نمایش نوار کنار">☰</button>
+      <div class="brand">
+        <span class="mark">◈</span>
+        <div class="brand-txt"><b>E.V.</b><small>Local Multimodal OS Agent</small></div>
+      </div>
     </div>
-    <div class="model-ctl">
-      <select id="modelSel" title="مدل زبان"></select>
+    <div class="tb-side">
+      <div id="modelDrop">
+        <button id="modelBtn" aria-haspopup="listbox" title="انتخاب مدل">
+          <span class="mdot"></span><span id="modelName">— auto —</span><span class="caret">▾</span>
+        </button>
+        <div id="modelMenu" hidden></div>
+      </div>
+      <span id="stateBadge" role="status">آماده</span>
       <button id="ttsToggle" title="صدا">🔊</button>
       <button id="themeToggle" title="تم روشن/تاریک">☀️</button>
-      <span id="stateBadge">آماده</span>
+      <button id="paletteBtn" title="پالت فرمان (Ctrl+K)">⌕</button>
     </div>
+    <select id="modelSel" hidden aria-hidden="true" tabindex="-1"></select>
   </header>
 
-  <!-- ============ main grid ============ -->
+  <!-- ================= main grid ================= -->
   <main id="grid">
 
-    <!-- system telemetry -->
-    <aside id="leftPanel" class="panel">
-      <h3>وضعیت سیستم</h3>
-      <div class="meter"><label>CPU</label><div class="bar"><i id="mCpu"></i></div><span id="vCpu">–</span></div>
-      <div class="meter"><label>RAM</label><div class="bar"><i id="mRam"></i></div><span id="vRam">–</span></div>
-      <div class="meter"><label>GPU</label><div class="bar"><i id="mGpu"></i></div><span id="vGpu">–</span></div>
-      <div class="meter"><label>VRAM</label><div class="bar"><i id="mVram"></i></div><span id="vVram">–</span></div>
-      <div class="meter"><label>DISK</label><div class="bar"><i id="mDisk"></i></div><span id="vDisk">–</span></div>
-      <div id="gpuTemp" class="chip">GPU: —</div>
+    <!-- workspace sidebar -->
+    <aside id="sidebar" aria-label="فضای کار">
+      <div class="sb-section">
+        <button id="newTask" class="sb-new" type="button">＋ تسک جدید</button>
+      </div>
+      <div class="sb-section">
+        <h3>تاریخچه</h3>
+        <ul id="taskList" class="sb-list"></ul>
+      </div>
+      <div class="sb-section">
+        <h3>اقدام سریع</h3>
+        <ul class="sb-list qa">
+          <li><button type="button" data-qa="یک اسکرین‌شات از صفحهٔ فعلی بگیر و نشانم بده"><i>🖥</i>اسکرین‌شات</button></li>
+          <li><button type="button" data-qa="از دوربین عکس بگیر و نشانم بده"><i>📷</i>دوربین</button></li>
+          <li><button type="button" data-qa="فایل‌های پوشهٔ فعلی را لیست کن"><i>📁</i>فایل‌ها</button></li>
+          <li><button type="button" data-qa="وضعیت CPU، RAM و GPU را بررسی کن و خلاصه بگو"><i>📊</i>وضعیت سیستم</button></li>
+        </ul>
+      </div>
+      <div class="sb-foot">🛡 اقدامات تا سطح ۳ خودکار اجرا می‌شوند — فقط عملیات حساس پرسش مجوز دارد</div>
     </aside>
 
-    <!-- chat — the hero -->
+    <!-- conversation (hero) -->
     <section id="chat">
-      <div id="chatHead">
-        <span class="dot"></span><b>گفتگو با E.V.</b>
-        <small>Space برای ضبط صدا · Ctrl+K برای فوکوس</small>
+      <div id="emptyState">
+        <div class="es-mark">◈</div>
+        <h2>E.V.</h2>
+        <p class="es-ready">آماده‌ام، هر وقت تو بخواهی.</p>
+        <p class="es-sub">می‌توانم محیط لینوکس تو را بررسی کنم، فایل‌ها را تحلیل کنم،<br>ابزارها را اجرا کنم و تسک‌های چندمرحله‌ای را انجام دهم.</p>
+        <div class="es-grid">
+          <button type="button" data-qa="یک اسکرین‌شات از صفحهٔ فعلی بگیر و نشانم بده"><b>🖥 کنترل کامپیوتر</b><small>دیدن و بررسی صفحه</small></button>
+          <button type="button" data-qa="فایل‌های پوشهٔ فعلی را لیست کن و ساختار پروژه را بگو"><b>📁 تحلیل فایل‌ها</b><small>مرور پروژه</small></button>
+          <button type="button" data-qa="وضعیت CPU، RAM و GPU را بررسی کن و خلاصه بگو"><b>📊 وضعیت سیستم</b><small>تلمتری زنده</small></button>
+          <button type="button" data-qa="یک اسکریپت پایتون بنویس و اجرا کن که وضعیت دیسک را گزارش کند"><b>💻 کدنویسی</b><small>نوشتن و اجرا</small></button>
+        </div>
       </div>
 
       <div id="log" aria-live="polite"></div>
 
-      <!-- live status dock: core orb + voice waveform -->
-      <div id="coreDock">
-        <div id="coreWrap">
-          <div class="ring r1"></div>
-          <div class="ring r2"></div>
-          <div class="ring r3"></div>
-          <canvas id="core"></canvas>
-          <div id="coreLabel">E.V.</div>
-        </div>
-        <canvas id="wave"></canvas>
-      </div>
-
       <form id="composer">
-        <button type="button" id="micBtn" title="گفتار (نگه دار و صحبت کن)">🎙</button>
-        <input id="msg" type="text" placeholder="درخواستت را بنویس…" autocomplete="off">
-        <button type="submit" id="sendBtn">ارسال ⏎</button>
+        <div class="comp-row">
+          <button type="button" id="micBtn" title="گفتار — نگه دار و صحبت کن (یا Space)" aria-label="ضبط صدا">🎙</button>
+          <textarea id="msg" rows="1" placeholder="از E.V. هر چی بخواه…" autocomplete="off"></textarea>
+          <button type="submit" id="sendBtn" title="ارسال (Enter)" aria-label="ارسال">↑</button>
+        </div>
+        <div class="comp-hints">
+          <span><kbd>Enter</kbd> ارسال · <kbd>Shift+Enter</kbd> خط جدید · <kbd>Esc</kbd> توقف · <kbd>Ctrl+K</kbd> پالت فرمان</span>
+        </div>
       </form>
     </section>
 
-    <!-- agent activity timeline -->
-    <aside id="rightPanel" class="panel">
-      <h3>فعالیت عامل</h3>
-      <ul id="stepFeed"></ul>
+    <!-- E.V. core / system panel -->
+    <aside id="corePanel" aria-label="هسته و وضعیت سیستم">
+      <h3>E.V. CORE</h3>
+      <div id="coreWrap">
+        <div class="ring r1"></div>
+        <div class="ring r2"></div>
+        <div class="ring r3"></div>
+        <canvas id="core"></canvas>
+        <div id="coreLabel">E.V.</div>
+      </div>
+      <div id="coreState">READY</div>
+      <canvas id="wave"></canvas>
+
+      <div class="cp-sec">
+        <h4>SYSTEM</h4>
+        <div class="meter"><label>CPU</label><div class="bar"><i id="mCpu"></i></div><span id="vCpu">–</span></div>
+        <div class="meter"><label>RAM</label><div class="bar"><i id="mRam"></i></div><span id="vRam">–</span></div>
+        <div class="meter"><label>GPU</label><div class="bar"><i id="mGpu"></i></div><span id="vGpu">–</span></div>
+        <div class="meter"><label>VRAM</label><div class="bar"><i id="mVram"></i></div><span id="vVram">–</span></div>
+        <div class="meter"><label>DISK</label><div class="bar"><i id="mDisk"></i></div><span id="vDisk">–</span></div>
+        <div id="gpuTemp" class="chip">GPU: —</div>
+      </div>
+      <div class="cp-sec">
+        <h4>MODEL</h4>
+        <div id="coreModel" class="cp-val ltr">—</div>
+      </div>
+      <div class="cp-sec">
+        <h4>TOOLS</h4>
+        <div id="coreTools" class="cp-val">—</div>
+      </div>
     </aside>
   </main>
 
-  <!-- ============ status bar ============ -->
+  <!-- ================= status bar ================= -->
   <footer id="bottombar">
     <span id="clock">--:--:--</span>
     <span id="hostInfo">—</span>
-    <span id="voiceHint">🎙 میکروفن: دکمه را بگیر و صحبت کن</span>
+    <span id="voiceHint">🎙 نگه‌دار و صحبت کن — یا کلید Space</span>
   </footer>
 </div>
 
-<script src="/static/hud.js?v=5"></script>
+<!-- command palette -->
+<div id="palette" hidden>
+  <div class="pal-box" role="dialog" aria-label="پالت فرمان">
+    <input id="palInput" placeholder="جست‌وجوی فرمان…" autocomplete="off">
+    <ul id="palList"></ul>
+    <div class="pal-hint"><kbd>↑↓</kbd> حرکت · <kbd>Enter</kbd> اجرا · <kbd>Esc</kbd> بستن</div>
+  </div>
+</div>
+
+<script src="/static/hud.js?v=6"></script>
 </body>
 </html>

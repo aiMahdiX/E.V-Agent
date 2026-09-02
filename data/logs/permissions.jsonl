@@ -793,3 +793,15 @@
 {"ts": 1788355173.579545, "action": "gpu_status", "args": {"foo": "dict-form"}, "level": 0, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
 {"ts": 1788355173.611331, "action": "fs_list_directory", "args": {"path": "."}, "level": 0, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
 {"ts": 1788355181.6499195, "action": "delete_file", "args": {"path": "/etc/shadow"}, "level": 4, "auto_approved": false, "session_approved": true, "decision": "approved", "outcome": "allowed"}
+{"ts": 1788357964.778559, "action": "read_file", "args": {"path": "x"}, "level": 0, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
+{"ts": 1788357964.7790456, "action": "write_file", "args": {"path": "x"}, "level": 1, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
+{"ts": 1788357964.7791839, "action": "kill_process", "args": {"pid": 1}, "level": 2, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
+{"ts": 1788357964.77929, "action": "delete_file", "args": {"path": "x"}, "level": 4, "auto_approved": false, "session_approved": false, "decision": "denied", "outcome": "blocked"}
+{"ts": 1788357964.8186557, "action": "fs_list_directory", "args": {"path": "."}, "level": 0, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
+{"ts": 1788357964.8196852, "action": "gpu_status", "args": {}, "level": 0, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
+{"ts": 1788357965.054003, "action": "gpu_status", "args": {"foo": "dict-form"}, "level": 0, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
+{"ts": 1788357965.089953, "action": "fs_list_directory", "args": {"path": "."}, "level": 0, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
+{"ts": 1788357965.0918694, "action": "gpu_status", "args": {}, "level": 0, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
+{"ts": 1788357965.1273215, "action": "gpu_status", "args": {"foo": "dict-form"}, "level": 0, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
+{"ts": 1788357965.1620681, "action": "fs_list_directory", "args": {"path": "."}, "level": 0, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
+{"ts": 1788357974.3303204, "action": "delete_file", "args": {"path": "/etc/shadow"}, "level": 4, "auto_approved": false, "session_approved": true, "decision": "approved", "outcome": "allowed"}

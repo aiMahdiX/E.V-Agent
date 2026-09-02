@@ -1,8 +1,13 @@
-/* E.V. HUD — reactive JARVIS-style front-end (vanilla JS, no deps) */
+/* ==================================================================
+   E.V. 2.0 front-end — vanilla JS, no deps.
+   Sections: state · boot · visuals (stars/core/wave) · chat helpers ·
+   agent activity · permission · tasks · composer · SSE · status/model ·
+   palette · voice · shortcuts.
+   ================================================================== */
 "use strict";
 
 /* ------------------------------------------------------------------ */
-/* global state + tiny pub-sub                                         */
+/* global state + state pill / core labels                             */
 /* ------------------------------------------------------------------ */
 const EV = {
   state: "idle",
@@ -11,17 +16,23 @@ const EV = {
   setState(s) {
     this.state = s;
     document.body.dataset.state = s;
-    const labels = { idle: "آماده", listening: "در حال شنیدن",
+    const fa = { idle: "آماده", listening: "در حال شنیدن",
       thinking: "در حال فکر", speaking: "در حال صحبت",
       awaiting: "در انتظار تأیید", error: "خطا" };
-    document.getElementById("stateBadge").textContent = labels[s] || s;
+    const en = { idle: "READY", listening: "LISTENING",
+      thinking: "THINKING", speaking: "SPEAKING",
+      awaiting: "AWAITING APPROVAL", error: "ERROR" };
+    const badge = document.getElementById("stateBadge");
+    if (badge) badge.textContent = fa[s] || s;
+    const core = document.getElementById("coreState");
+    if (core) core.textContent = en[s] || s.toUpperCase();
   },
   setLevel(v) { this.level = Math.max(0, Math.min(1, v)); },
 };
 
 const STATE_COLOR = {
-  idle: "#19e3ff", listening: "#ffb020", thinking: "#7af0ff",
-  speaking: "#8dff9b", awaiting: "#ffb020", error: "#ff5470",
+  idle: "#2AC8DE", listening: "#f5b544", thinking: "#67e3f9",
+  speaking: "#4ade80", awaiting: "#f5b544", error: "#f87171",
 };
 
 /* ------------------------------------------------------------------ */
@@ -33,7 +44,7 @@ const STATE_COLOR = {
     "OS AGENT LAYER … LINKED",
     "TOOL ORCHESTRATOR … READY",
     "VOICE PIPELINE … STANDBY",
-    "HUD INTERFACE … ACTIVE",
+    "CONSOLE … ACTIVE",
   ];
   const box = document.getElementById("bootLines");
   let i = 0;
@@ -42,17 +53,17 @@ const STATE_COLOR = {
       const d = document.createElement("div");
       d.textContent = "> " + lines[i++];
       box.appendChild(d);
-      setTimeout(tick, 260);
+      setTimeout(tick, 230);
     } else {
       setTimeout(() => document.getElementById("boot").classList.add("done"),
-                 420);
+                 380);
     }
   };
-  setTimeout(tick, 200);
+  setTimeout(tick, 180);
 })();
 
 /* ------------------------------------------------------------------ */
-/* starfield background                                                */
+/* starfield — subtle depth only (opacity handled in CSS)              */
 /* ------------------------------------------------------------------ */
 (function starfield() {
   const cv = document.getElementById("stars");
@@ -61,7 +72,7 @@ const STATE_COLOR = {
   function resize() {
     W = cv.width = innerWidth;
     H = cv.height = innerHeight;
-    stars = Array.from({ length: 140 }, () => ({
+    stars = Array.from({ length: 90 }, () => ({
       x: Math.random() * W, y: Math.random() * H,
       z: Math.random() * 0.8 + 0.2, tw: Math.random() * Math.PI * 2,
     }));
@@ -71,18 +82,18 @@ const STATE_COLOR = {
   (function draw(t) {
     cx.clearRect(0, 0, W, H);
     for (const s of stars) {
-      s.y += s.z * 0.12;
+      s.y += s.z * 0.08;
       if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
-      const a = 0.25 + 0.55 * Math.abs(Math.sin(t / 900 + s.tw));
+      const a = 0.2 + 0.5 * Math.abs(Math.sin(t / 900 + s.tw));
       cx.fillStyle = `rgba(120,220,255,${(a * s.z).toFixed(3)})`;
-      cx.fillRect(s.x, s.y, s.z * 1.7, s.z * 1.7);
+      cx.fillRect(s.x, s.y, s.z * 1.6, s.z * 1.6);
     }
     requestAnimationFrame(draw);
   })(0);
 })();
 
 /* ------------------------------------------------------------------ */
-/* central core — orbiting particles                                   */
+/* E.V. neural core — orbiting particles, state-reactive               */
 /* ------------------------------------------------------------------ */
 (function core() {
   const cv = document.getElementById("core");
@@ -91,7 +102,7 @@ const STATE_COLOR = {
   function resize() {
     W = cv.width = cv.clientWidth * devicePixelRatio;
     H = cv.height = cv.clientHeight * devicePixelRatio;
-    parts = Array.from({ length: 90 }, () => ({
+    parts = Array.from({ length: 70 }, () => ({
       r: 0.15 + Math.random() * 0.35,
       a: Math.random() * Math.PI * 2,
       sp: (0.2 + Math.random() * 0.9) * (Math.random() < 0.5 ? 1 : -1),
@@ -127,7 +138,7 @@ const STATE_COLOR = {
 })();
 
 /* ------------------------------------------------------------------ */
-/* waveform strip under the core                                       */
+/* waveform strip in the CORE panel                                    */
 /* ------------------------------------------------------------------ */
 (function wave() {
   const cv = document.getElementById("wave");
@@ -154,14 +165,14 @@ const STATE_COLOR = {
       x === 0 ? cx.moveTo(x, y) : cx.lineTo(x, y);
     }
     cx.strokeStyle = col;
-    cx.lineWidth = 1.6 * devicePixelRatio;
+    cx.lineWidth = 1.5 * devicePixelRatio;
     cx.shadowColor = col;
-    cx.shadowBlur = 8 * devicePixelRatio;
+    cx.shadowBlur = 6 * devicePixelRatio;
     cx.stroke();
     cx.shadowBlur = 0;
-    const target = { idle: 0.12, listening: EV.level, thinking: 0.35,
-                     speaking: EV.level, awaiting: 0.5,
-                     error: 0.2 }[EV.state] ?? 0.12;
+    const target = { idle: 0.10, listening: EV.level, thinking: 0.32,
+                     speaking: EV.level, awaiting: 0.45,
+                     error: 0.18 }[EV.state] ?? 0.10;
     if (EV.state !== "listening") {
       EV.level += (target * (0.7 + 0.6 * Math.abs(Math.sin(phase / 40)))
                    - EV.level) * 0.08;
@@ -174,7 +185,10 @@ const STATE_COLOR = {
 /* chat log helpers                                                    */
 /* ------------------------------------------------------------------ */
 const log = document.getElementById("log");
+const chatEl = document.getElementById("chat");
+
 function bubble(cls, text) {
+  chatEl.classList.add("has-msgs");
   const d = document.createElement("div");
   d.className = "msg " + cls;
   d.dir = "auto";                       // mixed fa/en renders correctly
@@ -192,6 +206,7 @@ function bubble(cls, text) {
 }
 /* streaming updates must touch only the body — keeps the timestamp */
 function msgBody(el) { return el.querySelector(".body") || el; }
+
 function briefResult(r) {
   if (r == null) return "";
   if (typeof r === "string") return r;
@@ -201,50 +216,24 @@ function briefResult(r) {
     if (r.description) return String(r.description);
     if (r.exit_code != null) {
       const tail = (typeof r.stderr === "string" && r.stderr.trim())
-        ? r.stderr.trim().split("\n").pop().slice(0, 80)
-        : (typeof r.stdout === "string" ? r.stdout.trim().split("\n").pop().slice(0, 80) : "");
+        ? r.stderr.trim().split("\n").pop().slice(0, 90)
+        : (typeof r.stdout === "string"
+           ? r.stdout.trim().split("\n").pop().slice(0, 90) : "");
       return "exit=" + r.exit_code + (tail ? " " + tail : "");
     }
     if (Array.isArray(r.entries)) return r.entries.length + " مورد یافت شد";
     const s = JSON.stringify(r);
-    return s ? s.slice(0, 110) : "";
+    return s ? s.slice(0, 120) : "";
   }
-  return String(r).slice(0, 110);
+  return String(r).slice(0, 120);
 }
-function addStep(info) {
-  const ul = document.getElementById("stepFeed");
-  const li = document.createElement("li");
-  const tool = info.tool || info.step || "tool";
-  const args = typeof info.args === "object" && info.args
-    ? JSON.stringify(info.args) : (info.args || "");
-  if (info.phase === "start") {
-    const msg = info.message || ("الان دارم «" + tool + "» را اجرا می‌کنم...");
-    li.innerHTML = `⏳ <b>${escapeHtml(tool)}</b> ${escapeHtml(msg)}` +
-      `<small>${escapeHtml(String(args)).slice(0, 90)}</small>`;
-    ul.prepend(li);
-    while (ul.children.length > 30) ul.lastChild.remove();
-    // mirror into the main chat log so the progress is unmissable
-    bubble("ev", "⚙️ " + msg);
-    return;
-  }
-  if (info.phase === "progress") {
-    li.innerHTML = `⏳ <b>${escapeHtml(tool)}</b> ${escapeHtml(info.message || "هنوز در حال انجام...")}`;
-    ul.prepend(li);
-    while (ul.children.length > 30) ul.lastChild.remove();
-    return;
-  }
-  li.innerHTML = `✅ <b>${escapeHtml(tool)}</b> ${escapeHtml(String(args)).slice(0, 90)}` +
-    `<small>${escapeHtml(briefResult(info.result))}</small>`;
-  ul.prepend(li);
-  while (ul.children.length > 30) ul.lastChild.remove();
-}
+
 function escapeHtml(s) {
-  return s.replace(/[&<>"']/g,
+  return String(s).replace(/[&<>"']/g,
     c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;",
             '"': "&quot;", "'": "&#39;" }[c]));
 }
-/* server JSON-encodes SSE payloads; token/state carry plain strings —
-   unwrap them so the chat shows the text, not `{"t": "..."}` quotes.  */
+/* server JSON-encodes SSE payloads; token/state carry plain strings */
 function unjson(s) {
   try {
     const v = JSON.parse(s);
@@ -254,7 +243,146 @@ function unjson(s) {
   return s;
 }
 
-/* server asks for a Level-3/4 approval — render the card in the chat log */
+/* ------------------------------------------------------------------ */
+/* agent activity — one card per run, expandable tool steps.
+   Shows WHAT E.V. did (tool + args + result) — never chain-of-thought. */
+/* ------------------------------------------------------------------ */
+const TOOL_ICONS = [
+  ["shell", "⌘"], ["command", "⌘"], ["fs", "📁"], ["file", "📁"],
+  ["camera", "📷"], ["screen", "🖥"], ["gpu", "📊"], ["sys", "📊"],
+  ["process", "📊"], ["web", "🌐"], ["browser", "🌐"], ["python", "🐍"],
+  ["voice", "🎤"], ["memory", "🧠"], ["window", "🪟"], ["clip", "📋"],
+  ["image", "🖼"], ["doc", "📄"], ["video", "🎬"],
+];
+function toolIcon(name) {
+  const n = String(name).toLowerCase();
+  for (const [k, ic] of TOOL_ICONS) if (n.includes(k)) return ic;
+  return "🔧";
+}
+
+let activity = null;          // current run's activity card
+function activeToolCount() {
+  return activity
+    ? activity.querySelectorAll(".act-step.run").length : 0;
+}
+function refreshToolsMeta() {
+  const el = document.getElementById("coreTools");
+  if (!el || !el.dataset.count) return;
+  const act = activeToolCount();
+  el.textContent = el.dataset.count + " available"
+    + (act ? " · " + act + " active" : "");
+}
+
+function ensureActivity() {
+  if (activity && activity.dataset.closed !== "1") return activity;
+  chatEl.classList.add("has-msgs");
+  activity = document.createElement("div");
+  activity.className = "activity";
+  activity.innerHTML =
+    `<div class="act-head"><span class="act-pulse"></span>` +
+    `<b>E.V. در حال کار</b><span class="act-meta"></span></div>` +
+    `<ul class="act-list"></ul>`;
+  log.appendChild(activity);
+  log.scrollTop = log.scrollHeight;
+  refreshToolsMeta();
+  return activity;
+}
+
+function closeActivity(ok) {
+  if (!activity || activity.dataset.closed === "1") return;
+  activity.dataset.closed = "1";
+  activity.classList.add(ok === false ? "failed" : "closed");
+  const n = activity.querySelectorAll(".act-step").length;
+  activity.querySelector(".act-head b").textContent =
+    ok === false ? "E.V. — متوقف شد" : "انجام شد";
+  activity.querySelector(".act-meta").textContent =
+    n ? n + " tool" + (n > 1 ? "s" : "") : "";
+  refreshToolsMeta();
+}
+
+function toggleStep(li) {
+  const det = li.querySelector(".act-detail");
+  const row = li.querySelector(".act-row");
+  det.hidden = !det.hidden;
+  row.setAttribute("aria-expanded", det.hidden ? "false" : "true");
+}
+
+function makeStepLi(tool, args) {
+  const li = document.createElement("li");
+  const flat = String(args).replace(/\s+/g, " ").trim();
+  li.innerHTML =
+    `<button class="act-row" type="button" aria-expanded="false">` +
+    `<span class="act-ico">${toolIcon(tool)}</span>` +
+    `<span class="act-name ltr" title="${escapeHtml(tool)}">${escapeHtml(tool)}</span>` +
+    `<span class="act-sum">${escapeHtml(flat.slice(0, 70))}</span>` +
+    `<span class="act-st"></span></button>` +
+    `<div class="act-detail" hidden>` +
+    `<pre class="ltr"></pre><pre class="ltr out" hidden></pre>` +
+    `<span class="act-dur"></span></div>`;
+  li.querySelector(".act-detail pre").textContent =
+    String(args).slice(0, 2000) || "—";
+  li.querySelector(".act-row").addEventListener("click", () => toggleStep(li));
+  return li;
+}
+
+function addStep(info) {
+  const card = ensureActivity();
+  const ul = card.querySelector(".act-list");
+  const tool = info.tool || info.step || "tool";
+  const args = (typeof info.args === "object" && info.args)
+    ? JSON.stringify(info.args, null, 1) : String(info.args ?? "");
+
+  if (info.phase === "start") {
+    const li = makeStepLi(tool, args);
+    li.className = "act-step run";
+    li.dataset.tool = tool;
+    li.dataset.t0 = String(Date.now());
+    ul.appendChild(li);
+    trimSteps(ul);
+    refreshToolsMeta();
+    log.scrollTop = log.scrollHeight;
+    return;
+  }
+
+  if (info.phase === "progress") {
+    // heartbeat: refresh the running row for this tool
+    const run = [...ul.querySelectorAll(".act-step.run")]
+      .reverse().find(x => x.dataset.tool === tool);
+    if (run) {
+      const msg = info.message || "هنوز در حال اجرا…";
+      run.querySelector(".act-sum").textContent = msg.slice(0, 70);
+      const det = run.querySelector(".act-detail .out");
+      det.hidden = false;
+      det.textContent = msg;
+    }
+    return;
+  }
+
+  // done (or error result)
+  let li = [...ul.querySelectorAll(".act-step.run")]
+    .reverse().find(x => x.dataset.tool === tool);
+  if (!li) { li = makeStepLi(tool, args); ul.appendChild(li); trimSteps(ul); }
+  const res = info.result;
+  const bad = res && typeof res === "object" && (res.error || res.blocked);
+  li.className = "act-step " + (bad ? "err" : "done");
+  const sum = briefResult(res);
+  li.querySelector(".act-sum").textContent = sum.slice(0, 70);
+  const out = li.querySelector(".act-detail .out");
+  out.hidden = false;
+  out.textContent = sum || "—";
+  const t0 = Number(li.dataset.t0 || 0);
+  if (t0) li.querySelector(".act-dur").textContent =
+    "duration: " + ((Date.now() - t0) / 1000).toFixed(1) + "s";
+  refreshToolsMeta();
+}
+
+function trimSteps(ul) {
+  while (ul.children.length > 40) ul.firstChild.remove();
+}
+
+/* ------------------------------------------------------------------ */
+/* permission — server asks for a Level-3/4 approval                   */
+/* ------------------------------------------------------------------ */
 const LEVEL_FA = { 0: "بی‌خطر", 1: "نوشتن", 2: "سیستمی",
   3: "دسترسی ویژه (root)", 4: "مخرب" };
 function showPermission(p) {
@@ -265,13 +393,12 @@ function showPermission(p) {
   card.innerHTML =
     `<div class="perm-head">⚠️ مجوز لازم است — سطح ${Number(p.level) || 0} (${
       escapeHtml(p.level_name || LEVEL_FA[p.level] || "")})</div>` +
-    `<div class="perm-action">${escapeHtml(p.action || "")}</div>` +
+    `<div class="perm-action">E.V. می‌خواهد اجرا کند:</div>` +
     `<pre class="perm-args">${escapeHtml(args).slice(0, 400)}</pre>` +
-    `<div class="perm-btns">
-       <button class="ok">تأیید ✅</button>
-       <button class="no">رد ❌</button>
-       <span class="perm-timer"></span>
-     </div>`;
+    `<div class="perm-btns">` +
+    `<button class="no">رد</button>` +
+    `<button class="ok">اجازه</button>` +
+    `<span class="perm-timer"></span></div>`;
   const ok = card.querySelector(".ok"), no = card.querySelector(".no");
   const timer = card.querySelector(".perm-timer");
   let left = Math.max(30, Math.min(300, (p.timeout || 180) | 0));
@@ -285,8 +412,8 @@ function showPermission(p) {
     ok.disabled = no.disabled = true;
     card.classList.add(allow ? "granted" : "denied");
     card.querySelector(".perm-btns").innerHTML =
-      `<span>${allow ? "✅ تأیید شد — در حال اجرا…"
-                     : expired ? "⌛ منقضی شد — رد گردید" : "❌ رد شد"}</span>`;
+      `<span>${allow ? "✓ تأیید شد — در حال اجرا…"
+                     : expired ? "⌛ منقضی شد — رد گردید" : "✕ رد شد"}</span>`;
     try {
       await fetch("/api/permission", { method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -300,19 +427,84 @@ function showPermission(p) {
 }
 
 /* ------------------------------------------------------------------ */
-/* chat — POST /api/chat and consume the SSE stream                    */
+/* workspace task history — the user's REAL prompts, locally stored    */
 /* ------------------------------------------------------------------ */
-async function sendMessage(text) {
-  if (!text || EV.state === "thinking") return;
-  bubble("user", text);
-  EV.setState("thinking");
+function loadTasks() {
+  try { return JSON.parse(localStorage.ev_tasks || "[]"); }
+  catch { return []; }
+}
+function addTask(text) {
+  const t = loadTasks();
+  if (t[0] && t[0].text === text) return;
+  t.unshift({ text: text.slice(0, 90), ts: Date.now() });
+  localStorage.ev_tasks = JSON.stringify(t.slice(0, 25));
+  renderTasks();
+}
+function renderTasks() {
+  const ul = document.getElementById("taskList");
+  const tasks = loadTasks();
+  ul.innerHTML = "";
+  if (!tasks.length) {
+    const li = document.createElement("li");
+    li.className = "sb-empty";
+    li.textContent = "هنوز تسکی ثبت نشده";
+    ul.appendChild(li);
+    return;
+  }
+  const dayStart = new Date().setHours(0, 0, 0, 0);
+  const today = tasks.filter(t => t.ts >= dayStart);
+  const older = tasks.filter(t => t.ts < dayStart);
+  const add = (list, label) => {
+    if (!list.length) return;
+    const h = document.createElement("li");
+    h.className = "sb-empty";
+    h.textContent = label;
+    ul.appendChild(h);
+    for (const t of list.slice(0, 7)) {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button";
+      b.title = t.text;
+      const s = document.createElement("span");
+      s.textContent = "● " + t.text;
+      b.appendChild(s);
+      b.addEventListener("click", () => {
+        const inp = document.getElementById("msg");
+        inp.value = t.text;
+        inp.focus();
+        autogrow();
+      });
+      li.appendChild(b);
+      ul.appendChild(li);
+    }
+  };
+  add(today, "امروز");
+  add(older, "قبلاً");
+}
 
+/* ------------------------------------------------------------------ */
+/* chat — POST /api/chat + SSE stream (abortable with Esc)             */
+/* ------------------------------------------------------------------ */
+let currentAbort = null;
+
+async function sendMessage(text) {
+  text = String(text || "").trim();
+  if (!text) return;
+  if (EV.state === "thinking" || EV.state === "awaiting") return;
+  bubble("user", text);
+  addTask(text);
+  EV.setState("thinking");
+  activity = null;                       // fresh activity card per run
+
+  const abort = new AbortController();
+  currentAbort = abort;
   let evBubble = null, acc = "";
   try {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: text }),
+      signal: abort.signal,
     });
     if (!res.ok || !res.body) throw new Error("HTTP " + res.status);
 
@@ -338,11 +530,20 @@ async function sendMessage(text) {
       }
     }
   } catch (e) {
+    if (e && e.name === "AbortError") {
+      closeActivity(false);
+      bubble("ev", "⏹ متوقف شد.");
+      EV.setState("idle");
+      currentAbort = null;
+      return;
+    }
     EV.setState("error");
-    bubble("ev error", "خطای ارتباط با سرور: " + e.message);
+    bubble("ev error", "خطای ارتباط با سرور: " + (e.message || e));
     setTimeout(() => EV.setState("idle"), 2500);
+    currentAbort = null;
     return;
   }
+  currentAbort = null;
   // stream closed without "done" (server restart/crash) — never stick
   if (EV.state === "thinking") EV.setState("idle");
 
@@ -369,82 +570,199 @@ async function sendMessage(text) {
       const answer = payload.answer ?? acc;
       if (!evBubble && answer) evBubble = bubble("ev", answer);
       else if (evBubble && answer && !acc) msgBody(evBubble).textContent = answer;
+      closeActivity(true);
       EV.setState("idle");
       speak(answer);
     }
   }
 }
 
+function stopGeneration() {
+  if (currentAbort) currentAbort.abort();
+}
+
+/* ------------------------------------------------------------------ */
+/* composer — auto-growing textarea, Enter=send, Shift+Enter=newline   */
+/* ------------------------------------------------------------------ */
+const msgInput = document.getElementById("msg");
+function autogrow() {
+  msgInput.style.height = "auto";
+  msgInput.style.height =
+    Math.min(150, Math.max(40, msgInput.scrollHeight)) + "px";
+}
+msgInput.addEventListener("input", autogrow);
+msgInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    document.getElementById("composer").requestSubmit();
+  }
+});
+
 document.getElementById("composer").addEventListener("submit", (e) => {
   e.preventDefault();
-  const inp = document.getElementById("msg");
-  const text = inp.value.trim();
+  const text = msgInput.value.trim();
   if (!text) return;
-  inp.value = "";
+  msgInput.value = "";
+  autogrow();
   sendMessage(text);
 });
 
+/* quick actions (sidebar + empty state) — all REAL agent tools */
+document.querySelectorAll("[data-qa]").forEach((b) => {
+  b.addEventListener("click", () => {
+    if (EV.state === "thinking" || EV.state === "awaiting") {
+      bubble("ev error", "E.V. مشغول است — ابتدا با Esc متوقف کن.");
+      return;
+    }
+    sendMessage(b.dataset.qa);
+  });
+});
+
+/* new task — clears the conversation (history is kept) */
+function newTask() {
+  stopGeneration();
+  log.innerHTML = "";
+  activity = null;
+  chatEl.classList.remove("has-msgs");
+  if (EV.state !== "idle") EV.setState("idle");
+  msgInput.focus();
+}
+document.getElementById("newTask").addEventListener("click", newTask);
+
+/* sidebar collapse (Ctrl+B, persisted) */
+function applySidebar() {
+  document.body.classList.toggle("sb-collapsed",
+    localStorage.ev_sidebar === "off");
+}
+function toggleSidebar() {
+  localStorage.ev_sidebar =
+    localStorage.ev_sidebar === "off" ? "on" : "off";
+  applySidebar();
+}
+document.getElementById("sbToggle").addEventListener("click", toggleSidebar);
+applySidebar();
 
 /* ------------------------------------------------------------------ */
-/* status polling + gauges                                             */
+/* status polling + gauges + tools (all real /api/status fields)       */
 /* ------------------------------------------------------------------ */
 function setMeter(barId, valId, pct, txt) {
   const bar = document.getElementById(barId);
+  if (!bar) return;
   bar.style.width = (pct ?? 0) + "%";
-  bar.classList.toggle("hot", (pct ?? 0) > 85);   // amber when nearly full
+  bar.classList.toggle("hot", (pct ?? 0) > 85);
   document.getElementById(valId).textContent = txt;
 }
+
+function isCloud(name) { return /cloud/i.test(String(name)); }
+
 async function pollStatus() {
   try {
     const s = await (await fetch("/api/status")).json();
-    setMeter("mCpu", "vCpu", s.cpu, s.cpu != null ? s.cpu + "%" : "–");
+    setMeter("mCpu", "vCpu", s.cpu, s.cpu != null ? s.cpu.toFixed(1) + "%" : "–");
     setMeter("mRam", "vRam", s.ram.percent, s.ram.percent + "%");
     if (s.gpu && s.gpu.available === false) {
-      document.getElementById("gpuTemp").textContent = "GPU: در دسترس نیست";
+      document.getElementById("gpuTemp").textContent = "GPU: unavailable";
     } else if (s.gpu && s.gpu.percent != null) {
       setMeter("mGpu", "vGpu", s.gpu.percent, s.gpu.percent + "%");
-      const temp = s.gpu.temp != null ? "GPU: " + s.gpu.temp + "°C" : "GPU: فعال";
-      document.getElementById("gpuTemp").textContent = temp;
+      document.getElementById("gpuTemp").textContent =
+        s.gpu.temp != null ? "GPU: " + s.gpu.temp + "°C" : "GPU: active";
       if (s.gpu.vram != null)
         setMeter("mVram", "vVram", s.gpu.vram.percent ?? 0,
                  (s.gpu.vram.percent ?? 0) + "%");
     }
     if (s.disk && s.disk.percent != null)
       setMeter("mDisk", "vDisk", s.disk.percent, s.disk.percent + "%");
-    syncModelSelect(s.model);
+    if (s.tools && s.tools.count != null) {
+      const el = document.getElementById("coreTools");
+      el.dataset.count = s.tools.count;
+      refreshToolsMeta();
+    }
+    renderModelDrop(s.model);
+    renderCoreModel(s.model);
   } catch { /* server briefly busy — retry next tick */ }
 }
 
 /* ------------------------------------------------------------------ */
-/* model selector                                                      */
+/* model dropdown — premium custom control (Local / Cloud tagged)      */
 /* ------------------------------------------------------------------ */
-const modelSel = document.getElementById("modelSel");
-let modelSync = false;
-function syncModelSelect(info) {
-  if (!info || document.activeElement === modelSel || modelSync) return;
-  modelSync = true;
-  const opts = new Set(["auto", ...(info.pool || []), ...(info.available || [])]);
-  const current = info.mode === "fixed" && info.current ? info.current : "auto";
+const modelBtn = document.getElementById("modelBtn");
+const modelName = document.getElementById("modelName");
+const modelMenu = document.getElementById("modelMenu");
+const modelSel = document.getElementById("modelSel");   // hidden a11y fallback
+let modelInfo = null, modelBusy = false;
+
+function renderCoreModel(info) {
+  const el = document.getElementById("coreModel");
+  if (!el || !info) return;
+  const cur = info.mode === "fixed" && info.current ? info.current : "auto";
+  el.textContent = cur === "auto" ? "auto (router)" : cur;
+}
+
+function renderModelDrop(info) {
+  if (!info || modelBusy || !modelMenu.hidden) return;
+  modelInfo = info;
+  const cur = info.mode === "fixed" && info.current ? info.current : "auto";
+  modelName.textContent = cur === "auto" ? "— auto —" : cur;
+  modelBtn.querySelector(".mdot").classList.toggle("cloud",
+    cur !== "auto" && isCloud(cur));
+
+  const opts = ["auto", ...(info.pool || []), ...(info.available || [])];
+  modelMenu.innerHTML = `<div class="mm-title">MODELS</div>`;
+  for (const m of [...new Set(opts)]) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "mm-item" + (m === cur ? " cur" : "");
+    b.innerHTML =
+      `<span class="mdot ${m !== "auto" && isCloud(m) ? "cloud" : ""}"></span>` +
+      `<span class="mm-name ltr">${escapeHtml(m === "auto" ? "— auto —" : m)}</span>` +
+      `<span class="mm-tag">${m === "auto" ? "ROUTER" : isCloud(m) ? "Cloud" : "Local"}</span>`;
+    b.addEventListener("click", () => setModel(m));
+    modelMenu.appendChild(b);
+  }
+  // hidden native select stays in sync (keyboard fallback)
   modelSel.innerHTML = "";
-  for (const m of opts) {
+  for (const m of [...new Set(opts)]) {
     const o = document.createElement("option");
     o.value = m;
-    o.textContent = m === "auto" ? "— auto —" : m;
-    if (m === current) o.selected = true;
+    o.textContent = m;
+    if (m === cur) o.selected = true;
     modelSel.appendChild(o);
   }
-  modelSync = false;
 }
-modelSel.addEventListener("change", async () => {
-  const body = await (await fetch("/api/model", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: modelSel.value }),
-  })).json();
-  syncModelSelect(body);
+
+async function setModel(m) {
+  modelBusy = true;
+  modelBtn.classList.add("busy");
+  modelName.textContent = m === "auto" ? "— auto —" : m + " …";
+  try {
+    const body = await (await fetch("/api/model", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: m }),
+    })).json();
+    modelInfo = body;
+    renderModelDrop.force = true;
+  } catch { modelName.textContent = "خطا"; }
+  modelBtn.classList.remove("busy");
+  modelBusy = false;
+  closeModelMenu();
+  pollStatus();
+}
+/* allow re-render even while menu closed after an explicit change */
+Object.defineProperty(renderModelDrop, "force", {
+  set(v) { if (v) { modelMenu.hidden = true; } },
+});
+
+function closeModelMenu() { modelMenu.hidden = true; modelBtn.setAttribute("aria-expanded", "false"); }
+modelBtn.addEventListener("click", () => {
+  modelMenu.hidden = !modelMenu.hidden;
+  modelBtn.setAttribute("aria-expanded", modelMenu.hidden ? "false" : "true");
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#modelDrop")) closeModelMenu();
 });
 
 /* ------------------------------------------------------------------ */
-/* TTS — POST /api/tts and play the returned audio                     */
+/* TTS toggle                                                          */
 /* ------------------------------------------------------------------ */
 const ttsBtn = document.getElementById("ttsToggle");
 function renderTtsBtn() {
@@ -459,7 +777,7 @@ ttsBtn.addEventListener("click", () => {
 renderTtsBtn();
 
 /* ------------------------------------------------------------------ */
-/* theme — dark (default) / light, persisted in localStorage           */
+/* theme — dark (default) / light, persisted                           */
 /* ------------------------------------------------------------------ */
 const themeBtn = document.getElementById("themeToggle");
 function applyTheme(t) {
@@ -496,7 +814,95 @@ async function speak(text) {
 }
 
 /* ------------------------------------------------------------------ */
-/* microphone — hold to record -> /api/stt -> auto-send                */
+/* command palette (Ctrl+K) — actions over REAL functionality          */
+/* ------------------------------------------------------------------ */
+const palette = document.getElementById("palette");
+const palInput = document.getElementById("palInput");
+const palList = document.getElementById("palList");
+let palSel = 0;
+
+function sendQuick(text) {
+  closePalette();
+  if (EV.state === "thinking" || EV.state === "awaiting") {
+    bubble("ev error", "E.V. مشغول است — ابتدا با Esc متوقف کن.");
+    return;
+  }
+  sendMessage(text);
+}
+
+const PALETTE_ACTIONS = [
+  { t: "تسک جدید — پاک‌کردن گفتگو", k: "Ctrl+N", run: () => { closePalette(); newTask(); } },
+  { t: "اسکرین‌شات از صفحهٔ فعلی", k: "tool", run: () =>
+      sendQuick("یک اسکرین‌شات از صفحهٔ فعلی بگیر و نشانم بده") },
+  { t: "عکس از دوربین", k: "tool", run: () =>
+      sendQuick("از دوربین عکس بگیر و نشانم بده") },
+  { t: "لیست فایل‌های پوشهٔ فعلی", k: "tool", run: () =>
+      sendQuick("فایل‌های پوشهٔ فعلی را لیست کن") },
+  { t: "وضعیت سیستم (CPU/RAM/GPU)", k: "tool", run: () =>
+      sendQuick("وضعیت CPU، RAM و GPU را بررسی کن و خلاصه بگو") },
+  { t: "تغییر مدل زبان", k: "model", run: () => { closePalette(); modelBtn.click(); } },
+  { t: "تم روشن / تاریک", k: "theme", run: () => { closePalette(); themeBtn.click(); } },
+  { t: "صدا روشن / خاموش (TTS)", k: "tts", run: () => { closePalette(); ttsBtn.click(); } },
+  { t: "نمایش / پنهان‌سازی نوار کنار", k: "Ctrl+B", run: () => { closePalette(); toggleSidebar(); } },
+  { t: "فوکوس به ورودی پیام", k: "/", run: () => { closePalette(); msgInput.focus(); } },
+];
+
+function openPalette() {
+  palette.hidden = false;
+  palInput.value = "";
+  renderPalette("");
+  palInput.focus();
+}
+function closePalette() { palette.hidden = true; }
+function renderPalette(q) {
+  const needle = q.trim().toLowerCase();
+  const items = PALETTE_ACTIONS.filter(a =>
+    !needle || a.t.toLowerCase().includes(needle));
+  palSel = 0;
+  palList.innerHTML = "";
+  items.forEach((a, i) => {
+    const li = document.createElement("li");
+    if (i === 0) li.className = "sel";
+    const b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = `<span>→ ${escapeHtml(a.t)}</span>` +
+                  `<span class="pal-k">${escapeHtml(a.k || "")}</span>`;
+    b.addEventListener("click", a.run);
+    li.appendChild(b);
+    palList.appendChild(li);
+  });
+  if (!items.length) {
+    const li = document.createElement("li");
+    li.className = "sb-empty";
+    li.style.padding = "10px 12px";
+    li.textContent = "چیزی پیدا نشد";
+    palList.appendChild(li);
+  }
+}
+palInput.addEventListener("input", () => renderPalette(palInput.value));
+palInput.addEventListener("keydown", (e) => {
+  const items = [...palList.querySelectorAll("li")];
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    if (!items.length) return;
+    items[palSel]?.classList.remove("sel");
+    palSel = (palSel + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+    items[palSel]?.classList.add("sel");
+    items[palSel]?.scrollIntoView({ block: "nearest" });
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    items[palSel]?.querySelector("button")?.click();
+  } else if (e.key === "Escape") {
+    closePalette();
+  }
+});
+palette.addEventListener("click", (e) => {
+  if (e.target === palette) closePalette();
+});
+document.getElementById("paletteBtn").addEventListener("click", openPalette);
+
+/* ------------------------------------------------------------------ */
+/* microphone — hold to record -> /api/stt -> auto-send (unchanged)    */
 /* ------------------------------------------------------------------ */
 const micBtn = document.getElementById("micBtn");
 let media = null, recorder = null, chunks = [], audioCtx = null,
@@ -606,16 +1012,28 @@ micBtn.addEventListener("pointerdown", (e) => {
 });
 micBtn.addEventListener("pointerup", stopRec);
 micBtn.addEventListener("pointercancel", stopRec);
+
+/* ------------------------------------------------------------------ */
+/* keyboard shortcuts (existing ones preserved)                        */
+/* ------------------------------------------------------------------ */
 addEventListener("keydown", (e) => {
   if (e.code === "Space" && e.target === document.body &&
-      !recorder && !starting) {
+      !recorder && !starting && palette.hidden) {
     e.preventDefault(); startRec();
   }
-  // Ctrl+K (or "/") — jump to the composer, like every modern console
-  if ((e.ctrlKey && e.key.toLowerCase() === "k") ||
-      (e.key === "/" && e.target === document.body)) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
     e.preventDefault();
-    document.getElementById("msg").focus();
+    palette.hidden ? openPalette() : closePalette();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+    e.preventDefault(); toggleSidebar();
+  }
+  if (e.key === "/" && e.target === document.body) {
+    e.preventDefault(); msgInput.focus();
+  }
+  if (e.key === "Escape" && palette.hidden) {
+    if (EV.state === "thinking") stopGeneration();
+    else closeModelMenu();
   }
 });
 addEventListener("keyup", (e) => {
@@ -625,16 +1043,13 @@ addEventListener("keyup", (e) => {
 });
 
 /* ------------------------------------------------------------------ */
-/* clock, host info, boot                                              */
+/* clock, host info, init                                              */
 /* ------------------------------------------------------------------ */
 setInterval(() => {
   document.getElementById("clock").textContent =
     new Date().toLocaleTimeString("fa-IR");
 }, 1000);
-fetch("/api/status").then(r => r.json()).then(s => {
-  document.getElementById("hostInfo").textContent =
-    "E.V. HUD — " + (s.model?.current || s.model?.mode || "auto");
-}).catch(() => {});
+renderTasks();
 pollStatus();
 setInterval(pollStatus, 2000);
 EV.setState("idle");

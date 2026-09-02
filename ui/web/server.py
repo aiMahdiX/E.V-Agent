@@ -174,6 +174,16 @@ def _model_info(agent) -> dict:
                 "available": [], "error": str(e)}
 
 
+def _tools_info(agent) -> dict:
+    """Tool inventory for the CORE panel — read-only, never raises."""
+    try:
+        orch = getattr(agent, "router", None)
+        names = orch.names() if callable(getattr(orch, "names", None)) else []
+        return {"count": len(names), "names": list(names)}
+    except Exception:  # noqa: BLE001 — degrade, don't kill /api/status
+        return {"count": 0, "names": []}
+
+
 # approval requests currently waiting for a HUD answer: id -> future
 pending_perms: dict[str, CfFuture] = {}
 
@@ -300,7 +310,8 @@ def create_app(agent, config: dict) -> web.Application:
             }
         return web.json_response({
             "cpu": cpu, "ram": ram, "gpu": gpu_out, "disk": disk,
-            "model": _model_info(agent), "ts": time.time(),
+            "model": _model_info(agent), "tools": _tools_info(agent),
+            "ts": time.time(),
         })
 
     # ---------------- POST /api/chat (SSE) ---------------- #
