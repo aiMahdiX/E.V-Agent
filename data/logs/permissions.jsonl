@@ -832,3 +832,6 @@
 {"ts": 1788358651.6181874, "action": "gpu_status", "args": {}, "level": 0, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
 {"ts": 1788358651.6522722, "action": "gpu_status", "args": {"foo": "dict-form"}, "level": 0, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
 {"ts": 1788358651.685246, "action": "fs_list_directory", "args": {"path": "."}, "level": 0, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
+{"ts": 1788358852.4177682, "action": "fs_list_directory", "args": {"path": "."}, "level": 0, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
+{"ts": 1788358883.8368025, "action": "fs_read_file", "args": {"path": "/home/aimahdix/Desktop/e.v/README.md"}, "level": 0, "auto_approved": true, "session_approved": false, "decision": "auto", "outcome": "allowed"}
+{"ts": 1788358910.738305, "action": "delete_file", "args": {"path": "/etc/shadow"}, "level": 4, "auto_approved": false, "session_approved": true, "decision": "approved", "outcome": "allowed"}

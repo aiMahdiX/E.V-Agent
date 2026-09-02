@@ -11271,3 +11271,408 @@ srv  update_slots: all slots are idle
 [GIN] 2026/09/02 - 17:46:19 | 200 |  4.011897036s |       127.0.0.1 | POST     "/api/chat"
 [GIN] 2026/09/02 - 17:46:33 | 502 | 14.000493648s |       127.0.0.1 | POST     "/api/chat"
 [GIN] 2026/09/02 - 17:46:34 | 400 |   271.25386ms |       127.0.0.1 | POST     "/api/chat"
+[GIN] 2026/09/02 - 17:48:28 | 502 |         1m30s |       127.0.0.1 | POST     "/api/chat"
+[GIN] 2026/09/02 - 17:48:28 | 400 |  270.348813ms |       127.0.0.1 | POST     "/api/chat"
+[GIN] 2026/09/02 - 17:48:51 | 502 |         1m30s |       127.0.0.1 | POST     "/api/chat"
+[GIN] 2026/09/02 - 17:48:51 | 400 |    263.3425ms |       127.0.0.1 | POST     "/api/chat"
+[GIN] 2026/09/02 - 17:50:02 | 502 | 26.100303273s |       127.0.0.1 | POST     "/api/chat"
+[GIN] 2026/09/02 - 17:50:02 | 400 |  256.421322ms |       127.0.0.1 | POST     "/api/chat"
+srv  server_strea: conv_id= (empty=1)
+slot get_availabl: id  0 | task -1 |  - checking sim = 0.002 (3/1328) > 0.100
+slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = 3157715801
+srv  get_availabl: updating prompt cache
+srv   prompt_save:  - saving prompt with length 3458, total state size = 158.379 MiB (draft: 0.000 MiB)
+srv          load:  - looking for better prompt, base f_keep = 0.001, f_sim = 0.002
+srv          load:    - prompt with length      11, lcp =       1, f_keep = 0.091, f_sim = 0.001
+srv          load:    - prompt with length     691, lcp =     277, f_keep = 0.401, f_sim = 0.209
+srv          load:    - prompt with length    3458, lcp =       3, f_keep = 0.001, f_sim = 0.002
+srv          load:  - found better prompt with f_keep = 0.401, f_sim = 0.209
+srv        update:  - cache state: 2 prompts, 409.976 MiB (limits: 8192.000 MiB, 8192 tokens, 69316 est)
+srv        update:    - prompt 0x3cc01860:      11 tokens, checkpoints:  1,   100.845 MiB
+srv        update:    - prompt 0x3cc01140:    3458 tokens, checkpoints:  3,   309.131 MiB
+srv  get_availabl: prompt cache update took 204.25 ms
+slot launch_slot_: id  0 | task -1 | sampler chain: logits -> penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> ?min-p -> ?xtc -> temp-ext -> dist 
+slot launch_slot_: id  0 | task -1 | sampler params: 
+	repeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 1.500
+	dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
+	top_k = 20, top_p = 0.950, min_p = 0.000, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.600
+	mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
+slot launch_slot_: id  0 | task 518 | processing task, is_child = 0
+slot   operator(): id  0 | task 518 | new prompt, n_ctx_slot = 8192, n_keep = 4, task.n_tokens = 1328
+slot   operator(): id  0 | task 518 | checking checkpoint with [514, 514] against 277...
+slot   operator(): id  0 | task 518 | checking checkpoint with [6, 6] against 277...
+slot   operator(): id  0 | task 518 | restored context checkpoint (pos_min = 6, pos_max = 6, n_tokens = 7, n_past = 7, size = 50.251 MiB)
+slot   operator(): id  0 | task 518 | erased invalidated context checkpoint (pos_min = 514, pos_max = 514, n_tokens = 515, n_swa = 0, pos_next = 7, size = 50.251 MiB)
+slot   operator(): id  0 | task 518 | cached n_tokens = 7, memory_seq_rm [7, end)
+slot   operator(): id  0 | task 518 | cached n_tokens = 519, memory_seq_rm [519, end)
+slot   operator(): id  0 | task 518 | cached n_tokens = 816, memory_seq_rm [816, end)
+slot create_check: id  0 | task 518 | created context checkpoint 2 of 32 (pos_min = 815, pos_max = 815, n_tokens = 816, size = 50.251 MiB)
+slot   operator(): id  0 | task 518 | cached n_tokens = 1324, memory_seq_rm [1324, end)
+slot init_sampler: id  0 | task 518 | init sampler, took 0.21 ms, tokens: text = 1328, total = 1328
+slot create_check: id  0 | task 518 | created context checkpoint 3 of 32 (pos_min = 1323, pos_max = 1323, n_tokens = 1324, size = 50.251 MiB)
+slot print_timing: id  0 | task 518 | prompt eval time =    1771.43 ms /  1321 tokens (    1.34 ms per token,   745.72 tokens per second)
+slot print_timing: id  0 | task 518 |        eval time =    5370.52 ms /    73 tokens (   74.59 ms per token,    13.41 tokens per second)
+slot print_timing: id  0 | task 518 |       total time =    7141.95 ms /  1394 tokens
+slot print_timing: id  0 | task 518 |    graphs reused =        543
+[GIN] 2026/09/02 - 17:50:39 | 200 |  7.731279246s |       127.0.0.1 | POST     "/api/chat"
+slot      release: id  0 | task 518 | stop processing: n_tokens = 1400, truncated = 0
+srv  update_slots: all slots are idle
+srv  server_strea: conv_id= (empty=1)
+slot get_availabl: id  0 | task -1 |  - checking sim = 0.001 (3/3904) > 0.100
+slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = 3889544690
+srv  get_availabl: updating prompt cache
+srv   prompt_save:  - saving prompt with length 1400, total state size = 94.027 MiB (draft: 0.000 MiB)
+srv          load:  - looking for better prompt, base f_keep = 0.002, f_sim = 0.001
+srv          load:    - prompt with length      11, lcp =       1, f_keep = 0.091, f_sim = 0.000
+srv          load:    - prompt with length    3458, lcp =    2278, f_keep = 0.659, f_sim = 0.584
+srv          load:    - prompt with length    1400, lcp =       3, f_keep = 0.002, f_sim = 0.001
+srv          load:  - found better prompt with f_keep = 0.659, f_sim = 0.584
+srv        update:  - cache state: 2 prompts, 345.625 MiB (limits: 8192.000 MiB, 8192 tokens, 33443 est)
+srv        update:    - prompt 0x3cc01860:      11 tokens, checkpoints:  1,   100.845 MiB
+srv        update:    - prompt 0x3c43cc90:    1400 tokens, checkpoints:  3,   244.779 MiB
+srv  get_availabl: prompt cache update took 143.36 ms
+slot launch_slot_: id  0 | task -1 | sampler chain: logits -> penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> ?min-p -> ?xtc -> temp-ext -> dist 
+slot launch_slot_: id  0 | task -1 | sampler params: 
+	repeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 1.500
+	dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
+	top_k = 20, top_p = 0.950, min_p = 0.000, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.600
+	mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
+slot launch_slot_: id  0 | task 595 | processing task, is_child = 0
+slot   operator(): id  0 | task 595 | new prompt, n_ctx_slot = 8192, n_keep = 4, task.n_tokens = 3904
+slot   operator(): id  0 | task 595 | checking checkpoint with [3409, 3409] against 2278...
+slot   operator(): id  0 | task 595 | checking checkpoint with [3324, 3324] against 2278...
+slot   operator(): id  0 | task 595 | checking checkpoint with [2658, 2658] against 2278...
+slot   operator(): id  0 | task 595 | forcing full prompt re-processing due to lack of cache data (likely due to SWA or hybrid/recurrent memory, see https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)
+slot   operator(): id  0 | task 595 | erased invalidated context checkpoint (pos_min = 2658, pos_max = 2658, n_tokens = 2659, n_swa = 0, pos_next = 0, size = 50.251 MiB)
+slot   operator(): id  0 | task 595 | erased invalidated context checkpoint (pos_min = 3324, pos_max = 3324, n_tokens = 3325, n_swa = 0, pos_next = 0, size = 50.251 MiB)
+slot   operator(): id  0 | task 595 | erased invalidated context checkpoint (pos_min = 3409, pos_max = 3409, n_tokens = 3410, n_swa = 0, pos_next = 0, size = 50.251 MiB)
+slot   operator(): id  0 | task 595 | cached n_tokens = 0, memory_seq_rm [0, end)
+slot   operator(): id  0 | task 595 | cached n_tokens = 512, memory_seq_rm [512, end)
+slot   operator(): id  0 | task 595 | cached n_tokens = 1024, memory_seq_rm [1024, end)
+slot   operator(): id  0 | task 595 | cached n_tokens = 1536, memory_seq_rm [1536, end)
+slot   operator(): id  0 | task 595 | cached n_tokens = 2048, memory_seq_rm [2048, end)
+slot   operator(): id  0 | task 595 | cached n_tokens = 2560, memory_seq_rm [2560, end)
+slot print_timing: id  0 | task 595 | prompt processing, n_tokens =   3072, progress = 0.79, t =   3.10 s / 990.01 tokens per second
+slot   operator(): id  0 | task 595 | cached n_tokens = 3072, memory_seq_rm [3072, end)
+slot print_timing: id  0 | task 595 | prompt processing, n_tokens =   3392, progress = 0.87, t =   3.64 s / 931.66 tokens per second
+slot   operator(): id  0 | task 595 | cached n_tokens = 3392, memory_seq_rm [3392, end)
+slot create_check: id  0 | task 595 | created context checkpoint 1 of 32 (pos_min = 3391, pos_max = 3391, n_tokens = 3392, size = 50.251 MiB)
+slot print_timing: id  0 | task 595 | prompt processing, n_tokens =   3900, progress = 1.00, t =   4.17 s / 935.55 tokens per second
+slot   operator(): id  0 | task 595 | cached n_tokens = 3900, memory_seq_rm [3900, end)
+slot init_sampler: id  0 | task 595 | init sampler, took 0.65 ms, tokens: text = 3904, total = 3904
+slot create_check: id  0 | task 595 | created context checkpoint 2 of 32 (pos_min = 3899, pos_max = 3899, n_tokens = 3900, size = 50.251 MiB)
+slot print_timing: id  0 | task 595 | prompt eval time =    4492.47 ms /  3904 tokens (    1.15 ms per token,   869.01 tokens per second)
+slot print_timing: id  0 | task 595 |        eval time =    1875.69 ms /    27 tokens (   72.14 ms per token,    13.86 tokens per second)
+slot print_timing: id  0 | task 595 |       total time =    6368.16 ms /  3931 tokens
+slot print_timing: id  0 | task 595 |    graphs reused =        568
+slot      release: id  0 | task 595 | stop processing: n_tokens = 3930, truncated = 0
+srv  update_slots: all slots are idle
+[GIN] 2026/09/02 - 17:50:52 | 200 |  6.841553313s |       127.0.0.1 | POST     "/api/chat"
+srv  server_strea: conv_id= (empty=1)
+slot get_availabl: id  0 | task -1 |  - checking sim = 0.949 (3900/4108) > 0.100
+slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.949 (> 0.100 thold), f_keep = 0.992
+slot launch_slot_: id  0 | task -1 | sampler chain: logits -> penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> ?min-p -> ?xtc -> temp-ext -> dist 
+slot launch_slot_: id  0 | task -1 | sampler params: 
+	repeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 1.500
+	dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
+	top_k = 20, top_p = 0.950, min_p = 0.000, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.600
+	mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
+slot launch_slot_: id  0 | task 631 | processing task, is_child = 0
+slot   operator(): id  0 | task 631 | new prompt, n_ctx_slot = 8192, n_keep = 4, task.n_tokens = 4108
+slot   operator(): id  0 | task 631 | checking checkpoint with [3899, 3899] against 3900...
+slot   operator(): id  0 | task 631 | restored context checkpoint (pos_min = 3899, pos_max = 3899, n_tokens = 3900, n_past = 3900, size = 50.251 MiB)
+slot   operator(): id  0 | task 631 | cached n_tokens = 3900, memory_seq_rm [3900, end)
+slot create_check: id  0 | task 631 | erasing context checkpoint too close to an earlier one (pos_min = 3899, pos_max = 3899, n_tokens = 3900, size = 50.251 MiB)
+slot create_check: id  0 | task 631 | created context checkpoint 2 of 32 (pos_min = 3899, pos_max = 3899, n_tokens = 3900, size = 50.251 MiB)
+slot   operator(): id  0 | task 631 | cached n_tokens = 4104, memory_seq_rm [4104, end)
+slot init_sampler: id  0 | task 631 | init sampler, took 0.68 ms, tokens: text = 4108, total = 4108
+slot create_check: id  0 | task 631 | created context checkpoint 3 of 32 (pos_min = 4103, pos_max = 4103, n_tokens = 4104, size = 50.251 MiB)
+slot print_timing: id  0 | task 631 | n_gen =    100, tg =  12.58 t/s, tg_3s =  12.71 t/s
+slot print_timing: id  0 | task 631 | n_gen =    137, tg =  12.45 t/s, tg_3s =  12.12 t/s
+slot print_timing: id  0 | task 631 | n_gen =    173, tg =  12.35 t/s, tg_3s =  11.96 t/s
+slot print_timing: id  0 | task 631 | n_gen =    211, tg =  12.38 t/s, tg_3s =  12.52 t/s
+slot print_timing: id  0 | task 631 | n_gen =    251, tg =  12.51 t/s, tg_3s =  13.27 t/s
+slot print_timing: id  0 | task 631 | n_gen =    294, tg =  12.73 t/s, tg_3s =  14.18 t/s
+slot print_timing: id  0 | task 631 | n_gen =    337, tg =  12.90 t/s, tg_3s =  14.19 t/s
+slot print_timing: id  0 | task 631 | prompt eval time =     545.48 ms /   208 tokens (    2.62 ms per token,   381.32 tokens per second)
+slot print_timing: id  0 | task 631 |        eval time =   26485.11 ms /   342 tokens (   77.67 ms per token,    12.88 tokens per second)
+slot print_timing: id  0 | task 631 |       total time =   27030.59 ms /   550 tokens
+slot print_timing: id  0 | task 631 |    graphs reused =        907
+slot      release: id  0 | task 631 | stop processing: n_tokens = 4449, truncated = 0
+srv  update_slots: all slots are idle
+[GIN] 2026/09/02 - 17:51:19 | 200 | 27.430371445s |       127.0.0.1 | POST     "/api/chat"
+srv  server_strea: conv_id= (empty=1)
+slot get_availabl: id  0 | task -1 |  - checking sim = 0.910 (4104/4510) > 0.100
+slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.910 (> 0.100 thold), f_keep = 0.922
+slot launch_slot_: id  0 | task -1 | sampler chain: logits -> penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> ?min-p -> ?xtc -> temp-ext -> dist 
+slot launch_slot_: id  0 | task -1 | sampler params: 
+	repeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 1.500
+	dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
+	top_k = 20, top_p = 0.950, min_p = 0.000, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.600
+	mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
+slot launch_slot_: id  0 | task 975 | processing task, is_child = 0
+slot   operator(): id  0 | task 975 | new prompt, n_ctx_slot = 8192, n_keep = 4, task.n_tokens = 4510
+slot   operator(): id  0 | task 975 | checking checkpoint with [4103, 4103] against 4104...
+slot   operator(): id  0 | task 975 | restored context checkpoint (pos_min = 4103, pos_max = 4103, n_tokens = 4104, n_past = 4104, size = 50.251 MiB)
+slot   operator(): id  0 | task 975 | cached n_tokens = 4104, memory_seq_rm [4104, end)
+slot create_check: id  0 | task 975 | erasing context checkpoint too close to an earlier one (pos_min = 3899, pos_max = 3899, n_tokens = 3900, size = 50.251 MiB)
+slot create_check: id  0 | task 975 | erasing context checkpoint too close to an earlier one (pos_min = 4103, pos_max = 4103, n_tokens = 4104, size = 50.251 MiB)
+slot create_check: id  0 | task 975 | created context checkpoint 2 of 32 (pos_min = 4103, pos_max = 4103, n_tokens = 4104, size = 50.251 MiB)
+slot   operator(): id  0 | task 975 | cached n_tokens = 4506, memory_seq_rm [4506, end)
+slot init_sampler: id  0 | task 975 | init sampler, took 0.75 ms, tokens: text = 4510, total = 4510
+slot create_check: id  0 | task 975 | created context checkpoint 3 of 32 (pos_min = 4505, pos_max = 4505, n_tokens = 4506, size = 50.251 MiB)
+slot print_timing: id  0 | task 975 | prompt eval time =     744.20 ms /   406 tokens (    1.83 ms per token,   545.55 tokens per second)
+slot print_timing: id  0 | task 975 |        eval time =    2826.32 ms /    38 tokens (   76.39 ms per token,    13.09 tokens per second)
+slot print_timing: id  0 | task 975 |       total time =    3570.52 ms /   444 tokens
+slot print_timing: id  0 | task 975 |    graphs reused =        943
+slot      release: id  0 | task 975 | stop processing: n_tokens = 4547, truncated = 0
+srv  update_slots: all slots are idle
+[GIN] 2026/09/02 - 17:51:23 | 200 |  3.983523618s |       127.0.0.1 | POST     "/api/chat"
+srv  server_strea: conv_id= (empty=1)
+slot get_availabl: id  0 | task -1 |  - checking sim = 0.558 (4506/8077) > 0.100
+slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.558 (> 0.100 thold), f_keep = 0.991
+slot launch_slot_: id  0 | task -1 | sampler chain: logits -> penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> ?min-p -> ?xtc -> temp-ext -> dist 
+slot launch_slot_: id  0 | task -1 | sampler params: 
+	repeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 1.500
+	dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
+	top_k = 20, top_p = 0.950, min_p = 0.000, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.600
+	mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
+slot launch_slot_: id  0 | task 1015 | processing task, is_child = 0
+slot   operator(): id  0 | task 1015 | new prompt, n_ctx_slot = 8192, n_keep = 4, task.n_tokens = 8077
+slot   operator(): id  0 | task 1015 | checking checkpoint with [4505, 4505] against 4506...
+slot   operator(): id  0 | task 1015 | restored context checkpoint (pos_min = 4505, pos_max = 4505, n_tokens = 4506, n_past = 4506, size = 50.251 MiB)
+slot   operator(): id  0 | task 1015 | cached n_tokens = 4506, memory_seq_rm [4506, end)
+slot   operator(): id  0 | task 1015 | cached n_tokens = 5018, memory_seq_rm [5018, end)
+slot   operator(): id  0 | task 1015 | cached n_tokens = 5530, memory_seq_rm [5530, end)
+slot   operator(): id  0 | task 1015 | cached n_tokens = 6042, memory_seq_rm [6042, end)
+slot   operator(): id  0 | task 1015 | cached n_tokens = 6554, memory_seq_rm [6554, end)
+slot   operator(): id  0 | task 1015 | cached n_tokens = 7066, memory_seq_rm [7066, end)
+slot print_timing: id  0 | task 1015 | prompt processing, n_tokens =   3059, progress = 0.94, t =   3.39 s / 901.55 tokens per second
+slot   operator(): id  0 | task 1015 | cached n_tokens = 7565, memory_seq_rm [7565, end)
+slot create_check: id  0 | task 1015 | erasing context checkpoint too close to an earlier one (pos_min = 4103, pos_max = 4103, n_tokens = 4104, size = 50.251 MiB)
+slot create_check: id  0 | task 1015 | erasing context checkpoint too close to an earlier one (pos_min = 4505, pos_max = 4505, n_tokens = 4506, size = 50.251 MiB)
+slot create_check: id  0 | task 1015 | created context checkpoint 2 of 32 (pos_min = 7564, pos_max = 7564, n_tokens = 7565, size = 50.251 MiB)
+slot print_timing: id  0 | task 1015 | prompt processing, n_tokens =   3567, progress = 1.00, t =   4.01 s / 889.64 tokens per second
+slot   operator(): id  0 | task 1015 | cached n_tokens = 8073, memory_seq_rm [8073, end)
+slot init_sampler: id  0 | task 1015 | init sampler, took 1.10 ms, tokens: text = 8077, total = 8077
+slot create_check: id  0 | task 1015 | created context checkpoint 3 of 32 (pos_min = 8072, pos_max = 8072, n_tokens = 8073, size = 50.251 MiB)
+[GIN] 2026/09/02 - 17:51:35 | 502 |         1m30s |       127.0.0.1 | POST     "/api/chat"
+time=2026-09-02T17:51:36.060+03:30 level=INFO source=sched.go:1332 msg="updated VRAM based on existing loaded models" gpu=0 library=CUDA total="3.7 GiB" available="1.5 GiB"
+time=2026-09-02T17:51:36.226+03:30 level=INFO source=sched.go:562 msg="llama-server model fits alongside existing models" predicted="1011.5 MiB" predicted_num_ctx=8192 num_batch=512 available="1.5 GiB" gpu_free="1.5 GiB" system_free="4.2 GiB" system_limited=false
+time=2026-09-02T17:51:36.227+03:30 level=INFO source=sched.go:1215 msg="disabling mmap for llama-server load due to host memory pressure" model=/home/aimahdix/.ollama/models/blobs/sha256-7cd4618c1faf8b7233c6c906dac1694b6a47684b37b8895d470ac688520b9c01 model_size="777.5 MiB" loaded_mmap_size="3.2 GiB" headroom="7.5 GiB" system_free="4.2 GiB" system_total="14.9 GiB" predicted_vram="1011.5 MiB" available_vram="1.5 GiB"
+time=2026-09-02T17:51:36.227+03:30 level=INFO source=server.go:109 msg="using llama-server for model" model=/home/aimahdix/.ollama/models/blobs/sha256-7cd4618c1faf8b7233c6c906dac1694b6a47684b37b8895d470ac688520b9c01
+time=2026-09-02T17:51:36.228+03:30 level=INFO source=llama_server.go:433 msg="starting llama-server" cmd="/usr/local/lib/ollama/llama-server --model /home/aimahdix/.ollama/models/blobs/sha256-7cd4618c1faf8b7233c6c906dac1694b6a47684b37b8895d470ac688520b9c01 --port 37667 --host 127.0.0.1 --no-webui --offline -c 8192 -np 1 --log-verbosity 4 --no-log-prefix --no-log-timestamps --no-jinja --chat-template chatml --load-mode none --flash-attn auto -b 512 -ub 512 --context-shift --keep 4"
+time=2026-09-02T17:51:36.229+03:30 level=INFO source=sched.go:613 msg="system memory" total="14.9 GiB" free="4.2 GiB" free_swap="2.7 GiB"
+time=2026-09-02T17:51:36.229+03:30 level=INFO source=sched.go:620 msg="gpu memory" id=0 library=CUDA available="1.0 GiB" free="1.5 GiB" minimum="457.0 MiB" overhead="0 B"
+time=2026-09-02T17:51:36.229+03:30 level=INFO source=llama_server.go:1048 msg="loading model via llama-server" model=/home/aimahdix/.ollama/models/blobs/sha256-7cd4618c1faf8b7233c6c906dac1694b6a47684b37b8895d470ac688520b9c01
+time=2026-09-02T17:51:36.229+03:30 level=INFO source=llama_server.go:1295 msg="waiting for llama-server to start responding"
+time=2026-09-02T17:51:36.230+03:30 level=INFO source=llama_server.go:1350 msg="waiting for llama-server to become available" status="llm server not responding"
+cmn  common_param: common_params_print_info: build 1 (7e4c0a968) with GNU 13.3.1 for Linux x86_64
+cmn  common_param: common_params_print_info: verbosity = 4 (adjust with the `-lv N` CLI arg)
+cmn  common_param: device_info:
+cmn  common_param:   - CPU     : 11th Gen Intel(R) Core(TM) i7-11600H @ 2.90GHz (15213 MiB, 15213 MiB free)
+cmn  common_param:   - CUDA0   : NVIDIA GeForce RTX 3050 Laptop GPU (3770 MiB, 663 MiB free)
+cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | LLAMAFILE = 1 | REPACK = 1 | CUDA : ARCHS = 750,800,860,870,890,900,1000,1030,1100,1200,1210 | USE_GRAPHS = 1 | 
+srv          init: using 11 threads for HTTP server
+srv          init: The UI is disabled
+srv          init: Use --ui/--no-ui (or deprecated --webui/--no-webui) to enable/disable
+srv  llama_server: -----------------
+srv  llama_server: CORS is set to allow all origins ('*') and no API key is set
+srv  llama_server: this can be a security risk (cross-origin attacks)
+srv  llama_server: more info: https://github.com/ggml-org/llama.cpp/pull/25655
+srv  llama_server: -----------------
+srv         start: binding port with default address family
+srv    load_model: loading model '/home/aimahdix/.ollama/models/blobs/sha256-7cd4618c1faf8b7233c6c906dac1694b6a47684b37b8895d470ac688520b9c01'
+srv    load_model: local path '/home/aimahdix/.ollama/models/blobs/sha256-7cd4618c1faf8b7233c6c906dac1694b6a47684b37b8895d470ac688520b9c01'
+cmn  common_init_: fitting params to device memory ...
+cmn  common_init_: (for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on)
+common_params_fit_impl: getting device memory data for initial parameters:
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+time=2026-09-02T17:51:36.733+03:30 level=INFO source=llama_server.go:1350 msg="waiting for llama-server to become available" status="llm server loading model"
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 872 =   762 +      54 +      56) +        2234 |
+common_memory_breakdown_print: |   - Host                        |                  319 =   306 +       0 +      13                |
+common_params_fit_impl: projected to use 872 MiB of device memory vs. 663 MiB of free device memory
+common_params_fit_impl: cannot meet free memory target of 1024 MiB, need to reduce device memory by 1232 MiB
+common_params_fit_impl: context size set by user to 8192 -> no change
+common_params_fit_impl: id=0, target=-360 MiB
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + (  63 =     0 +       0 +      63) +        3043 |
+common_memory_breakdown_print: |   - Host                        |                  830 =   762 +      54 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer= 0, n_part= 0, overflow_type=4, mem=    63 MiB
+common_params_fit_impl: filling dense layers back-to-front:
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 872 =   762 +      54 +      56) +        2234 |
+common_memory_breakdown_print: |   - Host                        |                  319 =   306 +       0 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=27, n_part= 0, overflow_type=4, mem=   872 MiB
+common_params_fit_impl: start filling device 0, delta=27
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+slot print_timing: id  0 | task 1015 | n_gen =    100, tg =   9.12 t/s, tg_3s =   9.22 t/s
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 854 =   743 +      53 +      57) +        2252 |
+common_memory_breakdown_print: |   - Host                        |                  339 =   324 +       1 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=26, n_part= 0, overflow_type=4, mem=   854 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=26
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 834 =   725 +      52 +      57) +        2272 |
+common_memory_breakdown_print: |   - Host                        |                  358 =   343 +       2 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=25, n_part= 0, overflow_type=4, mem=   834 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=25
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+slot print_timing: id  0 | task 1015 | prompt eval time =    4399.02 ms /  3571 tokens (    1.23 ms per token,   811.77 tokens per second)
+slot print_timing: id  0 | task 1015 |        eval time =   12546.16 ms /   115 tokens (  110.05 ms per token,     9.09 tokens per second)
+slot print_timing: id  0 | task 1015 |       total time =   16945.17 ms /  3686 tokens
+slot print_timing: id  0 | task 1015 |    graphs reused =       1056
+slot      release: id  0 | task 1015 | stop processing: n_tokens = 8191, truncated = 1
+srv  update_slots: all slots are idle
+[GIN] 2026/09/02 - 17:51:41 | 200 | 17.334179533s |       127.0.0.1 | POST     "/api/chat"
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 815 =   706 +      51 +      57) +        2291 |
+common_memory_breakdown_print: |   - Host                        |                  378 =   361 +       3 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=24, n_part= 0, overflow_type=4, mem=   815 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=24
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 797 =   690 +      50 +      57) +        2309 |
+common_memory_breakdown_print: |   - Host                        |                  395 =   378 +       4 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=23, n_part= 0, overflow_type=4, mem=   797 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=23
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 779 =   673 +      49 +      57) +        2326 |
+common_memory_breakdown_print: |   - Host                        |                  413 =   394 +       5 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=22, n_part= 0, overflow_type=4, mem=   779 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=22
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 759 =   655 +      41 +      63) +        2347 |
+common_memory_breakdown_print: |   - Host                        |                  439 =   413 +      13 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=21, n_part= 0, overflow_type=4, mem=   759 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=21
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 741 =   638 +      40 +      63) +        2364 |
+common_memory_breakdown_print: |   - Host                        |                  457 =   429 +      14 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=20, n_part= 0, overflow_type=4, mem=   741 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=20
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 724 =   622 +      39 +      63) +        2382 |
+common_memory_breakdown_print: |   - Host                        |                  474 =   446 +      15 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=19, n_part= 0, overflow_type=4, mem=   724 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=19
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 704 =   603 +      38 +      63) +        2401 |
+common_memory_breakdown_print: |   - Host                        |                  494 =   465 +      16 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=18, n_part= 0, overflow_type=4, mem=   704 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=18
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 687 =   586 +      37 +      63) +        2419 |
+common_memory_breakdown_print: |   - Host                        |                  512 =   481 +      17 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=17, n_part= 0, overflow_type=4, mem=   687 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=17
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 669 =   570 +      36 +      63) +        2437 |
+common_memory_breakdown_print: |   - Host                        |                  529 =   498 +      18 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=16, n_part= 0, overflow_type=4, mem=   669 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=16
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 643 =   551 +      28 +      63) +        2463 |
+common_memory_breakdown_print: |   - Host                        |                  556 =   516 +      26 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=15, n_part= 0, overflow_type=4, mem=   643 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=15
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 625 =   535 +      27 +      63) +        2481 |
+common_memory_breakdown_print: |   - Host                        |                  573 =   533 +      27 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=14, n_part= 0, overflow_type=4, mem=   625 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=14
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 608 =   518 +      26 +      63) +        2498 |
+common_memory_breakdown_print: |   - Host                        |                  591 =   549 +      28 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=13, n_part= 0, overflow_type=4, mem=   608 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=13
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 588 =   500 +      25 +      63) +        2518 |
+common_memory_breakdown_print: |   - Host                        |                  610 =   568 +      29 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=12, n_part= 0, overflow_type=4, mem=   588 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=12
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 570 =   483 +      24 +      63) +        2535 |
+common_memory_breakdown_print: |   - Host                        |                  628 =   584 +      30 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=11, n_part= 0, overflow_type=4, mem=   570 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=11
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 553 =   467 +      23 +      63) +        2553 |
+common_memory_breakdown_print: |   - Host                        |                  645 =   601 +      31 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer=10, n_part= 0, overflow_type=4, mem=   553 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=10
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 526 =   448 +      15 +      63) +        2579 |
+common_memory_breakdown_print: |   - Host                        |                  672 =   619 +      39 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer= 9, n_part= 0, overflow_type=4, mem=   526 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=9
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 509 =   432 +      14 +      63) +        2597 |
+common_memory_breakdown_print: |   - Host                        |                  690 =   636 +      40 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer= 8, n_part= 0, overflow_type=4, mem=   509 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=8
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 491 =   415 +      13 +      63) +        2614 |
+common_memory_breakdown_print: |   - Host                        |                  707 =   653 +      41 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer= 7, n_part= 0, overflow_type=4, mem=   491 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=7
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 472 =   396 +      12 +      63) +        2634 |
+common_memory_breakdown_print: |   - Host                        |                  727 =   671 +      42 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer= 6, n_part= 0, overflow_type=4, mem=   472 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=6
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 454 =   380 +      11 +      63) +        2652 |
+common_memory_breakdown_print: |   - Host                        |                  744 =   688 +      43 +      13                |
+common_params_fit_impl: memory for test allocation by device:
+common_params_fit_impl: id=0, n_layer= 5, n_part= 0, overflow_type=4, mem=   454 MiB
+common_params_fit_impl: set ngl_per_device_high[0].n_layer=5
+handle_gemma3: detected Ollama-format gemma3 GGUF; applying compatibility fixes
+common_memory_breakdown_print: | memory breakdown [MiB]          | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - CUDA0 (RTX 3050 Laptop GPU) |  3770 =  663 + ( 435 =   361 +      10 +      63) +        2671 |
+common_memory_breakdown_print: |   - Host                        |                  764 =   706 +      44 +      13                |
