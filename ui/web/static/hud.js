@@ -313,11 +313,13 @@ function makeStepLi(tool, args) {
   li.innerHTML =
     `<button class="act-row" type="button" aria-expanded="false">` +
     `<span class="act-ico">${toolIcon(tool)}</span>` +
-    `<span class="act-name ltr" title="${escapeHtml(tool)}">${escapeHtml(tool)}</span>` +
-    `<span class="act-sum">${escapeHtml(flat.slice(0, 70))}</span>` +
+    `<span class="act-name" title="${escapeHtml(tool)}">${escapeHtml(tool)}</span>` +
+    `<span class="act-mid">` +
+    `<span class="act-sum"></span>` +
+    `<span class="act-res" hidden></span></span>` +
     `<span class="act-st"></span></button>` +
     `<div class="act-detail" hidden>` +
-    `<pre class="ltr"></pre><pre class="ltr out" hidden></pre>` +
+    `<pre class="ltr args"></pre><pre class="ltr out" hidden></pre>` +
     `<span class="act-dur"></span></div>`;
   li.querySelector(".act-detail pre").textContent =
     String(args).slice(0, 2000) || "—";
@@ -337,6 +339,10 @@ function addStep(info) {
     li.className = "act-step run";
     li.dataset.tool = tool;
     li.dataset.t0 = String(Date.now());
+    // the Persian announcement IS the key live detail (it embeds the
+    // command) — surface it directly, don't hide it behind the expander
+    li.querySelector(".act-sum").textContent =
+      info.message || String(args).replace(/\s+/g, " ").slice(0, 140);
     ul.appendChild(li);
     trimSteps(ul);
     refreshToolsMeta();
@@ -350,7 +356,7 @@ function addStep(info) {
       .reverse().find(x => x.dataset.tool === tool);
     if (run) {
       const msg = info.message || "هنوز در حال اجرا…";
-      run.querySelector(".act-sum").textContent = msg.slice(0, 70);
+      run.querySelector(".act-sum").textContent = msg;
       const det = run.querySelector(".act-detail .out");
       det.hidden = false;
       det.textContent = msg;
@@ -358,7 +364,8 @@ function addStep(info) {
     return;
   }
 
-  // done (or error result)
+  // done — KEEP the "what" (message) in the row and ADD the result under
+  // it, so both stay visible without expanding anything
   let li = [...ul.querySelectorAll(".act-step.run")]
     .reverse().find(x => x.dataset.tool === tool);
   if (!li) { li = makeStepLi(tool, args); ul.appendChild(li); trimSteps(ul); }
@@ -366,7 +373,9 @@ function addStep(info) {
   const bad = res && typeof res === "object" && (res.error || res.blocked);
   li.className = "act-step " + (bad ? "err" : "done");
   const sum = briefResult(res);
-  li.querySelector(".act-sum").textContent = sum.slice(0, 70);
+  const resEl = li.querySelector(".act-res");
+  resEl.hidden = false;
+  resEl.textContent = sum || "—";
   const out = li.querySelector(".act-detail .out");
   out.hidden = false;
   out.textContent = sum || "—";

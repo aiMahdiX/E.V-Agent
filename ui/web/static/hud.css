@@ -307,9 +307,25 @@ body.sb-collapsed #sidebar { border-inline-end-width: 0; }
 .act-name { color: var(--ev-primary); font-family: var(--mono); font-size: 11px;
             flex: none; max-width: 200px; overflow: hidden;
             text-overflow: ellipsis; white-space: nowrap; }
-.act-sum { flex: 1; color: var(--ev-muted); font-size: 11px; overflow: hidden;
-           text-overflow: ellipsis; white-space: nowrap;
-           direction: rtl; unicode-bidi: plaintext; }
+.act-sum {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; word-break: break-word; line-height: 1.7;
+  color: var(--ev-text); font-size: 11.5px;
+  direction: rtl; unicode-bidi: plaintext;
+}
+.act-res {
+  display: block; margin-top: 3px;
+  font: 10.5px/1.6 var(--mono); color: var(--ev-muted);
+  direction: ltr; text-align: left; unicode-bidi: plaintext;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; word-break: break-all;
+}
+.act-res[hidden] { display: none; }   /* explicit — never fight the UA rule */
+.act-step.err .act-res { color: var(--ev-danger); }
+.act-step.done .act-res { color: var(--ev-success); }
+.act-mid { flex: 1; min-width: 0; }
+.act-row { align-items: flex-start; }
+.act-row .act-ico, .act-row .act-st { margin-top: 2px; }
 .act-st { flex: none; width: 16px; text-align: center; font-size: 11px;
           color: var(--ev-muted); }
 .act-step.run .act-st { color: var(--ev-primary); }
