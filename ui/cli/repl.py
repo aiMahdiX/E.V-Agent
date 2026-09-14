@@ -26,6 +26,7 @@ class CLI:
         self._capabilities = on_capabilities
         self._tools = on_tools
         self._voice_runfunc = on_voice
+        self._hud = on_hud
         self.running = True
 
     def _print_banner(self):
