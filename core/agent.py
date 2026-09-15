@@ -46,15 +46,25 @@ class Agent:
         self._pending_task: dict | None = None
 
     # -------------------------------------------------------------- #
-    def _build(self, user_input: str) -> tuple[list[dict], str]:
+    def _build(self, user_input, history=None):
         intent = self.intent_engine.detect(user_input)
         model = self.model_override or self.model_router.choose(
             user_input, intent)
-        history = self.memory.recent()
+        if history:
+            # a reopened web session supplies its OWN prior exchange so the
+            # model "remembers" that conversation (global memory untouched)
+            prior = [{"role": m["role"], "content": str(m.get("content") or "")}
+                     for m in history[-24:]
+                     if isinstance(m, dict)
+                     and m.get("role") in ("user", "assistant")
+                     and str(m.get("content") or "").strip()]
+            prior.append({"role": "user", "content": user_input})
+        else:
+            prior = [*self.memory.recent(),
+                     {"role": "user", "content": user_input}]
         messages = [{"role": "system",
                      "content": self.context.system_prompt()},
-                    *history,
-                    {"role": "user", "content": user_input}]
+                    *prior]
         return messages, model
 
     # -------------------------------------------------------------- #
@@ -375,7 +385,8 @@ class Agent:
                                "args": args, "result": result})
         return None      # keep looping (assistant already replied via on_stream)
 
-    def run(self, user_input: str, on_stream=None, on_step=None) -> str:
+    def run(self, user_input: str, on_stream=None, on_step=None,
+            history=None) -> str:
         # Resume an unfinished task:when the user says «ادامه بده», continue
         # with the SAME transcript+messages, so the work isn't lost.
 
@@ -389,12 +400,12 @@ class Agent:
         # Fast path: light question/chat -> single streamed pass (no tools)
         if intent in ("question", "conversation") and not complex_req \
                 and on_stream is not None:
-            messages, model = self._build(user_input)
+            messages, model = self._build(user_input, history)
             if model:
                 return self._turbo_quick(messages, user_input, model,
                                          on_stream)
 
-        messages, model = self._build(user_input)
+        messages, model = self._build(user_input, history)
         transcript = [{"intent": intent, "model": model,
                        "user": user_input}]
         tool_intent = intent in ("command", "task", "emergency", "observation")

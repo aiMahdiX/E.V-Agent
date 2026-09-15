@@ -583,7 +583,14 @@ async function sendMessage(text) {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify({
+        message: text,
+        history: (SESS.msgs.length > 1
+          ? SESS.msgs.slice(0, -1).slice(-24)
+              .map(m => ({ role: m.role === "user" ? "user" : "assistant",
+                           content: m.text }))
+          : null),
+      }),
       signal: abort.signal,
     });
     if (!res.ok || !res.body) throw new Error("HTTP " + res.status);

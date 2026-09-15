@@ -320,6 +320,19 @@ def create_app(agent, config: dict) -> web.Application:
         user_input = str(body.get("message", "")).strip()
         if not user_input:
             return web.json_response({"error": "empty message"}, status=400)
+        # optional session history (reopened web conversations) — the agent
+        # seeds its context from these instead of the shared short-term mem
+        history = None
+        raw = body.get("history")
+        if isinstance(raw, list) and raw:
+            history = [
+                {"role": h.get("role"),
+                 "content": str(h.get("content") or "")[:2000]}
+                for h in raw[-24:]
+                if isinstance(h, dict)
+                and h.get("role") in ("user", "assistant")
+                and str(h.get("content") or "").strip()
+            ] or None
 
         resp = web.StreamResponse(headers={
             "Content-Type": "text/event-stream; charset=utf-8",
@@ -379,8 +392,9 @@ def create_app(agent, config: dict) -> web.Application:
 
                 set_sudo_web_active(True)
                 try:
+                    kwargs = {} if history is None else {"history": history}
                     return agent.run(user_input, on_stream=cb_stream,
-                                     on_step=cb_step)
+                                     on_step=cb_step, **kwargs)
                 except Exception as e:  # noqa: BLE001
                     return f"[Error] {e}"
                 finally:

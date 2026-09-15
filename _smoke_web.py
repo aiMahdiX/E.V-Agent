@@ -351,5 +351,72 @@ except Exception:
     st = None
 check("POST /api/permission unknown id 404", st == 404, f"status={st}")
 
+# 11. session-history passthrough — reopening an old conversation sends its
+#     own transcript; the bridge has to hand it to agent.run(history=...)
+#     sanitised (roles filtered, blanks dropped, newest 24 kept) and must
+#     keep the kwarg OUT when the client sends none.  The latter is guarded
+#     by test 6 above: StubAgent.run has a strict signature, so a server
+#     that always passed history would blow up there.
+seen = {}
+
+
+class HistStubAgent(StubAgent):
+    def run(self, text, on_stream=None, on_step=None, history=None):
+        seen["history"] = history
+        if on_stream:
+            on_stream("باشه.")
+        return "باشه."
+
+
+app3 = create_app(HistStubAgent(), config)
+runner3 = web.AppRunner(app3)
+
+
+async def _serve3():
+    await runner3.setup()
+    await web.TCPSite(runner3, "127.0.0.1", 8801).start()
+
+
+loop.call_soon_threadsafe(lambda: loop.create_task(_serve3()))
+time.sleep(1.0)
+
+
+def chat_8801(payload):
+    req = urllib.request.Request("http://127.0.0.1:8801/api/chat",
+                                 data=json.dumps(payload).encode(),
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return r.read().decode("utf-8", "replace")
+
+
+chat_8801({"message": "ادامه بده", "history": [
+    {"role": "user", "content": "ربات تلگرامم بالا نمیاد"},
+    {"role": "assistant", "content": "دارم بررسی می‌کنم."},
+    {"role": "system", "content": "MUST BE DROPPED"},
+    "not-a-dict",
+    {"role": "user", "content": "   "},
+]})
+hist = seen.get("history")
+check("history passthrough sanitised",
+      isinstance(hist, list) and len(hist) == 2
+      and [h["role"] for h in hist] == ["user", "assistant"]
+      and hist[0]["content"] == "ربات تلگرامم بالا نمیاد"
+      and hist[1]["content"] == "دارم بررسی می‌کنم.",
+      f"history={hist}")
+
+bulk = [{"role": "user" if i % 2 == 0 else "assistant", "content": f"m{i}"}
+        for i in range(26)]
+chat_8801({"message": "ادامه بده", "history": bulk})
+hist = seen.get("history") or []
+check("history capped to newest 24",
+      len(hist) == 24 and hist[0]["content"] == "m2"
+      and hist[-1]["content"] == "m25",
+      f"n={len(hist)} first={(hist or [{}])[0].get('content')}")
+
+seen.clear()
+chat_8801({"message": "سلام"})
+check("no history -> not seeded", seen.get("history") is None,
+      f"history={seen.get('history')}")
+
 print("\n" + ("ALL_WEB_SMOKE_PASS" if not fails else f"FAILED: {fails}"))
 sys.exit(1 if fails else 0)
