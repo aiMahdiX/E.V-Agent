@@ -312,6 +312,21 @@ body.sb-collapsed #sidebar { border-inline-end-width: 0; }
 .msg.ev .body { color: var(--ev-text); }
 .msg.ev.error { border-color: var(--ev-danger); color: #fecaca; }
 
+/* reopened-session chip */
+.sess-chip {
+  align-self: stretch; display: flex; align-items: center; gap: 10px;
+  padding: 7px 12px; border: 1px solid var(--ev-border);
+  border-radius: var(--r-md); background: var(--ev-surface-2);
+  font-size: 11.5px; color: var(--ev-muted);
+}
+.sess-chip b { color: var(--ev-text); font-weight: 600; }
+.sess-chip button {
+  margin-inline-start: auto; font-size: 10.5px; color: var(--ev-muted);
+  border: 1px solid var(--ev-border); border-radius: 4px;
+  padding: 2px 10px; transition: all var(--tr);
+}
+.sess-chip button:hover { color: var(--ev-primary); border-color: var(--ev-primary); }
+
 /* ---------- agent activity card ---------- */
 .activity {
   align-self: stretch; max-width: min(86%, 780px); margin-inline-start: auto;

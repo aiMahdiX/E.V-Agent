@@ -438,16 +438,37 @@ function showPermission(p) {
 /* ------------------------------------------------------------------ */
 /* workspace task history — the user's REAL prompts, locally stored    */
 /* ------------------------------------------------------------------ */
-function loadTasks() {
-  try { return JSON.parse(localStorage.ev_tasks || "[]"); }
+/* ------------------------------------------------------------------ */
+/* chat sessions — every conversation is its own history page (like\n   ChatGPT): title from the first prompt, click to reopen, continue,\n   or start fresh with a new task. Persisted in localStorage.       */
+/* ------------------------------------------------------------------ */
+let SESS = { id: null, title: "", ts: 0, msgs: [] };
+
+function loadSessions() {
+  try { return JSON.parse(localStorage.ev_sessions || "[]"); }
   catch { return []; }
 }
-function addTask(text) {
-  const t = loadTasks();
-  if (t[0] && t[0].text === text) return;
-  t.unshift({ text: text.slice(0, 90), ts: Date.now() });
-  localStorage.ev_tasks = JSON.stringify(t.slice(0, 40));
-  renderTasks();
+function saveSessions(list) {
+  localStorage.ev_sessions = JSON.stringify(list.slice(0, 30));
+  renderSessions();
+}
+function ensureSession(firstText) {
+  if (!SESS.id) {
+    SESS = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      title: String(firstText).slice(0, 60),
+      ts: Date.now(),
+      msgs: [],
+    };
+  }
+}
+function persistSession() {
+  if (!SESS.id) return;
+  const list = loadSessions();
+  const rec = { id: SESS.id, title: SESS.title, ts: SESS.ts,
+                msgs: SESS.msgs.slice(-40) };
+  const i = list.findIndex(s => s.id === SESS.id);
+  if (i >= 0) list[i] = rec; else list.unshift(rec);
+  saveSessions(list);
 }
 
 /* history rows: real timestamps, two groups with divider headers */
@@ -458,56 +479,86 @@ function fmtTaskTime(ts) {
     ? d.toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })
     : d.toLocaleDateString("fa-IR", { month: "numeric", day: "numeric" });
 }
-function renderTasks() {
+
+function renderSessions() {
   const ul = document.getElementById("taskList");
-  const tasks = loadTasks();
+  const sessions = loadSessions();
   ul.innerHTML = "";
-  if (!tasks.length) {
+  if (!sessions.length) {
     const li = document.createElement("li");
     li.className = "sb-empty";
-    li.textContent = "هنوز تسکی ثبت نشده — هر چی بخواهی این‌جا ذخیره می‌شود";
+    li.textContent = "هنوز گفتگویی نیست — هر چت به‌صورت یک صفحه ذخیره می‌شود";
     ul.appendChild(li);
     return;
   }
   const dayStart = new Date().setHours(0, 0, 0, 0);
   const groups = [
-    ["امروز", tasks.filter(t => t.ts >= dayStart)],
-    ["قبلاً", tasks.filter(t => t.ts < dayStart)],
+    ["امروز", sessions.filter(s => s.ts >= dayStart)],
+    ["قبلاً", sessions.filter(s => s.ts < dayStart)],
   ];
-  const openTask = (text) => {
-    const inp = document.getElementById("msg");
-    inp.value = text;
-    inp.focus();
-    autogrow();
-  };
   for (const [label, list] of groups) {
     if (!list.length) continue;
     const h = document.createElement("li");
     h.className = "tk-grp";
     h.textContent = label;
     ul.appendChild(h);
-    for (const t of list.slice(0, 10)) {
+    for (const s of list.slice(0, 10)) {
       const li = document.createElement("li");
       const b = document.createElement("button");
       b.type = "button";
       b.className = "tk-item";
-      b.title = t.text;
+      b.title = s.title;
       const txt = document.createElement("span");
       txt.className = "tk-txt";
-      txt.textContent = t.text;
+      txt.textContent = s.title;
       const time = document.createElement("small");
       time.className = "tk-time";
-      time.textContent = fmtTaskTime(t.ts);
+      time.textContent = fmtTaskTime(s.ts);
       b.append(txt, time);
-      b.addEventListener("click", () => openTask(t.text));
+      b.addEventListener("click", () => openSession(s.id));
       li.appendChild(b);
       ul.appendChild(li);
     }
   }
 }
+
+function openSession(id) {
+  const s = loadSessions().find(x => x.id === id);
+  if (!s) return;
+  newTask(true);                      // clear the live view (keep session)
+  SESS = { id: s.id, title: s.title, ts: s.ts, msgs: s.msgs.slice() };
+  chatEl.classList.add("has-msgs");
+  const chip = document.createElement("div");
+  chip.className = "sess-chip";
+  chip.innerHTML =
+    `<span>🕘 گفتگوی قبلی — <b>${escapeHtml(s.title)}</b></span>` +
+    `<button type="button" title="تسک جدید">بستن</button>`;
+  chip.querySelector("button").addEventListener("click", () => newTask());
+  log.appendChild(chip);
+  for (const m of s.msgs) bubble(m.role === "user" ? "user" : "ev", m.text);
+  msgInput.focus();
+}
+
+/* migrate: old flat prompt-history becomes one session each */
+function migrateTasks() {
+  if (loadSessions().length) return;
+  let tasks = [];
+  try { tasks = JSON.parse(localStorage.ev_tasks || "[]"); } catch { tasks = []; }
+  if (!tasks.length) return;
+  const sessions = tasks.map(t => ({
+    id: "m" + t.ts,
+    title: t.text.slice(0, 60),
+    ts: t.ts,
+    msgs: [{ role: "user", text: t.text }],
+  }));
+  localStorage.ev_sessions = JSON.stringify(sessions.slice(0, 30));
+  delete localStorage.ev_tasks;
+  renderSessions();
+}
 document.getElementById("clearHistory").addEventListener("click", () => {
-  localStorage.ev_tasks = "[]";
-  renderTasks();
+  SESS = { id: null, title: "", ts: 0, msgs: [] };
+  localStorage.ev_sessions = "[]";
+  renderSessions();
 });
 
 /* ------------------------------------------------------------------ */
@@ -520,7 +571,8 @@ async function sendMessage(text) {
   if (!text) return;
   if (EV.state === "thinking" || EV.state === "awaiting") return;
   bubble("user", text);
-  addTask(text);
+  ensureSession(text);
+  SESS.msgs.push({ role: "user", text });
   EV.setState("thinking");
   activity = null;                       // fresh activity card per run
 
@@ -561,6 +613,7 @@ async function sendMessage(text) {
     if (e && e.name === "AbortError") {
       closeActivity(false);
       bubble("ev", "⏹ متوقف شد.");
+      persistSession();
       EV.setState("idle");
       currentAbort = null;
       return;
@@ -601,6 +654,8 @@ async function sendMessage(text) {
       closeActivity(true);
       EV.setState("idle");
       speak(answer);
+      if (answer) SESS.msgs.push({ role: "ev", text: answer });
+      persistSession();
     }
   }
 }
@@ -647,15 +702,18 @@ document.querySelectorAll("[data-qa]").forEach((b) => {
 });
 
 /* new task — clears the conversation (history is kept) */
-function newTask() {
+function newTask(keepSession) {
   stopGeneration();
   log.innerHTML = "";
+  if (!keepSession) {
+    SESS = { id: null, title: "", ts: 0, msgs: [] };
+    chatEl.classList.remove("has-msgs");
+  }
   activity = null;
-  chatEl.classList.remove("has-msgs");
   if (EV.state !== "idle") EV.setState("idle");
   msgInput.focus();
 }
-document.getElementById("newTask").addEventListener("click", newTask);
+document.getElementById("newTask").addEventListener("click", () => newTask());
 
 /* sidebar collapse (Ctrl+B, persisted) */
 function applySidebar() {
@@ -1107,7 +1165,8 @@ setInterval(() => {
   document.getElementById("clock").textContent =
     new Date().toLocaleTimeString("fa-IR");
 }, 1000);
-renderTasks();
+migrateTasks();
+renderSessions();
 pollStatus();
 setInterval(pollStatus, 2000);
 EV.setState("idle");
