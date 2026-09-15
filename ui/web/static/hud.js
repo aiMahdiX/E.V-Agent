@@ -446,8 +446,17 @@ function addTask(text) {
   const t = loadTasks();
   if (t[0] && t[0].text === text) return;
   t.unshift({ text: text.slice(0, 90), ts: Date.now() });
-  localStorage.ev_tasks = JSON.stringify(t.slice(0, 25));
+  localStorage.ev_tasks = JSON.stringify(t.slice(0, 40));
   renderTasks();
+}
+
+/* history rows: real timestamps, two groups with divider headers */
+function fmtTaskTime(ts) {
+  const d = new Date(ts);
+  const dayStart = new Date().setHours(0, 0, 0, 0);
+  return ts >= dayStart
+    ? d.toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleDateString("fa-IR", { month: "numeric", day: "numeric" });
 }
 function renderTasks() {
   const ul = document.getElementById("taskList");
@@ -456,40 +465,50 @@ function renderTasks() {
   if (!tasks.length) {
     const li = document.createElement("li");
     li.className = "sb-empty";
-    li.textContent = "هنوز تسکی ثبت نشده";
+    li.textContent = "هنوز تسکی ثبت نشده — هر چی بخواهی این‌جا ذخیره می‌شود";
     ul.appendChild(li);
     return;
   }
   const dayStart = new Date().setHours(0, 0, 0, 0);
-  const today = tasks.filter(t => t.ts >= dayStart);
-  const older = tasks.filter(t => t.ts < dayStart);
-  const add = (list, label) => {
-    if (!list.length) return;
+  const groups = [
+    ["امروز", tasks.filter(t => t.ts >= dayStart)],
+    ["قبلاً", tasks.filter(t => t.ts < dayStart)],
+  ];
+  const openTask = (text) => {
+    const inp = document.getElementById("msg");
+    inp.value = text;
+    inp.focus();
+    autogrow();
+  };
+  for (const [label, list] of groups) {
+    if (!list.length) continue;
     const h = document.createElement("li");
-    h.className = "sb-empty";
+    h.className = "tk-grp";
     h.textContent = label;
     ul.appendChild(h);
-    for (const t of list.slice(0, 7)) {
+    for (const t of list.slice(0, 10)) {
       const li = document.createElement("li");
       const b = document.createElement("button");
       b.type = "button";
+      b.className = "tk-item";
       b.title = t.text;
-      const s = document.createElement("span");
-      s.textContent = "● " + t.text;
-      b.appendChild(s);
-      b.addEventListener("click", () => {
-        const inp = document.getElementById("msg");
-        inp.value = t.text;
-        inp.focus();
-        autogrow();
-      });
+      const txt = document.createElement("span");
+      txt.className = "tk-txt";
+      txt.textContent = t.text;
+      const time = document.createElement("small");
+      time.className = "tk-time";
+      time.textContent = fmtTaskTime(t.ts);
+      b.append(txt, time);
+      b.addEventListener("click", () => openTask(t.text));
       li.appendChild(b);
       ul.appendChild(li);
     }
-  };
-  add(today, "امروز");
-  add(older, "قبلاً");
+  }
 }
+document.getElementById("clearHistory").addEventListener("click", () => {
+  localStorage.ev_tasks = "[]";
+  renderTasks();
+});
 
 /* ------------------------------------------------------------------ */
 /* chat — POST /api/chat + SSE stream (abortable with Esc)             */

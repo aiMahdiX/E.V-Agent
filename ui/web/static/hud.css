@@ -189,14 +189,35 @@ body.sb-collapsed #sidebar { border-inline-end-width: 0; }
   font-size: 10px; letter-spacing: .18em; color: var(--ev-muted);
   margin: 2px 6px 8px; font-weight: 600;
 }
+/* ---- history — the ONLY scrollable part of the sidebar, flex-constraint
+   so it never double-scrolls or clips (one inner scrollbar max) ---- */
+#historyBox {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  padding: 0 10px 4px;
+}
+.tk-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 2px 6px 8px; flex: none;
+}
+.tk-head h3 { margin: 0; }
+#clearHistory {
+  font-size: 9.5px; color: var(--ev-muted);
+  border: 1px solid var(--ev-border); border-radius: 4px;
+  padding: 2px 9px; transition: all var(--tr);
+}
+#clearHistory:hover { color: var(--ev-danger); border-color: var(--ev-danger); }
+#taskList {
+  list-style: none; flex: 1; min-height: 0; overflow-y: auto;
+  padding: 0 0 8px;
+}
 .sb-new {
   display: block; width: 100%; text-align: start;
   padding: 8px 11px; border-radius: var(--r-sm);
   border: 1px solid var(--ev-border); background: var(--ev-surface-2);
   font-size: 12.5px; font-weight: 600; transition: all var(--tr);
+  flex: none;
 }
 .sb-new:hover { border-color: var(--ev-primary); color: var(--ev-primary); }
-.sb-list { list-style: none; overflow-y: auto; min-height: 0; }
 .sb-list li button {
   display: flex; align-items: center; gap: 8px; width: 100%;
   text-align: start; padding: 6px 9px; border-radius: var(--r-sm);
@@ -205,13 +226,33 @@ body.sb-collapsed #sidebar { border-inline-end-width: 0; }
 .sb-list li button:hover { background: var(--ev-surface-2); }
 .sb-list li button i { font-style: normal; flex: none; width: 18px;
                        text-align: center; opacity: .85; }
-#taskList li button span {
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  direction: rtl; unicode-bidi: plaintext;
+/* history groups + rows */
+.tk-grp {
+  display: flex; align-items: center; gap: 9px;
+  color: var(--ev-muted); font-size: 9.5px; letter-spacing: .14em;
+  font-weight: 600; padding: 10px 6px 3px; user-select: none;
 }
-#taskList li button:hover span { color: var(--ev-primary); }
-.sb-empty { color: var(--ev-muted); font-size: 11px; padding: 4px 9px; }
-.qa { padding-bottom: 8px; }
+.tk-grp::after { content: ""; flex: 1; height: 1px;
+                 background: var(--ev-border-soft); }
+.tk-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 6px 8px; border-radius: var(--r-sm);
+  transition: background var(--tr), color var(--tr);
+}
+.tk-item:hover { background: var(--ev-surface-2); }
+.tk-txt {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; direction: rtl; unicode-bidi: plaintext;
+  font-size: 11.5px; color: var(--ev-text);
+}
+.tk-item:hover .tk-txt { color: var(--ev-primary); }
+.tk-time {
+  flex: none; color: var(--ev-muted); font-size: 9.5px;
+  font-variant-numeric: tabular-nums; direction: ltr;
+}
+.sb-empty { color: var(--ev-muted); font-size: 11px; padding: 6px 9px; }
+.qa-sec { flex: none; }
+.qa { padding-bottom: 8px; overflow: visible; }
 .sb-foot {
   margin-top: auto; padding: 11px 12px; border-top: 1px solid var(--ev-border);
   color: var(--ev-muted); font-size: 10.5px; line-height: 1.8;

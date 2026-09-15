@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark">
 <title>E.V. — Local Multimodal OS Agent</title>
-<link rel="stylesheet" href="/static/hud.css?v=14">
+<link rel="stylesheet" href="/static/hud.css?v=15">
 </head>
 <body data-state="idle">
 
@@ -49,11 +49,14 @@
       <div class="sb-section">
         <button id="newTask" class="sb-new" type="button">＋ تسک جدید</button>
       </div>
-      <div class="sb-section">
-        <h3>تاریخچه</h3>
+      <div id="historyBox">
+        <div class="tk-head">
+          <h3>تاریخچه</h3>
+          <button id="clearHistory" type="button" title="پاک کردن تاریخچه">پاک</button>
+        </div>
         <ul id="taskList" class="sb-list"></ul>
       </div>
-      <div class="sb-section">
+      <div class="sb-section qa-sec">
         <h3>اقدام سریع</h3>
         <ul class="sb-list qa">
           <li><button type="button" data-qa="یک اسکرین‌شات از صفحهٔ فعلی بگیر و نشانم بده"><i>🖥</i>اسکرین‌شات</button></li>
@@ -144,6 +147,6 @@
   </div>
 </div>
 
-<script src="/static/hud.js?v=14"></script>
+<script src="/static/hud.js?v=15"></script>
 </body>
 </html>
