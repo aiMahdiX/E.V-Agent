@@ -23,6 +23,7 @@ from tools.gui import GUI_TOOLS
 from tools.browser import BROWSER_TOOLS
 from tools.camera import CAMERA_TOOLS
 from tools.vision import VISION_TOOLS
+from tools.integrations import INTEGRATION_TOOLS
 from security.permissions import (PermissionEngine, PermissionDenied,
                                   ShellPermissionEngine)
 
@@ -40,7 +41,8 @@ class ToolRouter:
         self.register(SHELL_TOOL)
         for t in (FILE_TOOLS + PROCESS_TOOLS + SERVICE_TOOLS + GPU_TOOLS
                   + NETWORK_TOOLS + AUDIO_TOOLS + SCREEN_TOOLS + GUI_TOOLS
-                  + BROWSER_TOOLS + CAMERA_TOOLS + VISION_TOOLS):
+                  + BROWSER_TOOLS + CAMERA_TOOLS + VISION_TOOLS
+                  + INTEGRATION_TOOLS):
             self.register(t)
         # if no dedicated shell engine, derive one from the generic engine
         if self.shell_perm is None and self.perm is not None:
@@ -51,6 +53,9 @@ class ToolRouter:
 
     def names(self) -> list[str]:
         return sorted(self._tools)
+
+    def has_tool(self, name: str) -> bool:
+        return name in self._tools
 
     def schemas(self) -> list[dict]:
         return [t.schema() for t in self._tools.values()]

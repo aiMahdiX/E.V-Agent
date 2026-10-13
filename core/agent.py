@@ -27,7 +27,8 @@ class Agent:
     def __init__(self, llm: OllamaClient, router, context: ContextBuilder,
                  memory: ShortTermMemory, episodic: EpisodicMemory,
                  model_router: ModelRouter, max_iterations: int = 8,
-                 model: str | None = None, turbo_threshold: float = 0.3):
+                 model: str | None = None, turbo_threshold: float = 0.3,
+                 skills=None):
         self.llm = llm
         self.router = router
         self.context = context
@@ -37,6 +38,7 @@ class Agent:
         self.max_iterations = max_iterations
         self.model_override = model
         self.turbo_threshold = turbo_threshold
+        self.skills = skills        # optional SkillEngine (Phase 7)
         self.intent_engine = IntentEngine()
         self.last_toolcalls: list[dict] = []
         self.heartbeat_seconds = 8   # live-progress tick while a tool runs
@@ -63,9 +65,25 @@ class Agent:
             prior = [*self.memory.recent(),
                      {"role": "user", "content": user_input}]
         messages = [{"role": "system",
-                     "content": self.context.system_prompt()},
+                     "content": self.context.system_prompt(user_input)},
                     *prior]
         return messages, model
+
+    def _learn_skill(self, user_input: str, final_answer: str,
+                     transcript: list) -> None:
+        """Self-improvement hook: consolidate successful multi-tool runs into
+        reusable skills. Best-effort — never affects the agent's reply."""
+        if self.skills is None:
+            return
+        try:
+            outcome = self.skills.consolidate(user_input, final_answer,
+                                              transcript)
+            if outcome and outcome.get("action") == "created":
+                self.episodic.record(
+                    f"Skill created: {outcome.get('id')}",
+                    {"goal": user_input[:120]})
+        except Exception:  # noqa: BLE001 — learning must never break the turn
+            pass
 
     # -------------------------------------------------------------- #
     def _turbo_quick(self, messages: list[dict], user: str, model: str,
@@ -87,7 +105,7 @@ class Agent:
         except LLMError as e:
             return f"[Error] {e}"
         if self._is_junk(content):
-            content = "[پاسخی دریافت نشد — مدل خروجی خالی/ناقص داد. دوباره بپرسید.]"
+            content = "[No response received — the model returned empty or incomplete output. Please try again.]"
         self.memory.add_message({"role": "user", "content": user})
         self.memory.add_message({"role": "assistant", "content": content})
         self.episodic.record(
@@ -101,34 +119,32 @@ class Agent:
     _TAG_OPEN = "<" + "tool_call" + ">"
     _TAG_CLOSE = "<" + "/" + "tool_call" + ">"
 
-    # Human-friendly Persian labels fothe step feed so the user sees
-    # "الان دارم «دوربین» را اجرا می‌کنم..." while a tool is running —
-    # this is the only live feedback during a long shell command.
+    # Human-readable labels keep the live tool feed clear during long commands.
     _TOOL_LABELS = {
-        "shell_run_command": "دستور شل", "run_command": "دستور شل",
-        "camera_look": "دوربین", "camera_capture": "عکس‌برداری دوربین",
-        "camera_list": "لیست دوربین‌ها",
-        "browser_launch": "مرورگر", "browser_open": "باز کردن صفحه",
-        "browser_read": "خواندن صفحه", "browser_click": "کلیک مرورگر",
-        "browser_type": "تایپ در مرورگر", "browser_scroll": "اسکرول مرورگر",
-        "browser_screenshot": "اسکرین‌شات مرورگر",
-        "gpu_status": "وضعیت GPU", "gpu_temperature": "دمای GPU",
-        "fs_read_file": "خواندن فایل", "fs_write_file": "نوشتن فایل",
-        "fs_edit_file": "ویرایش فایل", "fs_list_directory": "لیست پوشه",
-        "fs_create_file": "ساخت فایل", "fs_search_files": "جستجو در فایل‌ها",
-        "capture_screen": "گرفتن اسکرین‌شات", "vision_describe": "توصیف تصویر",
-        "vision_screen": "تحلیل صفحه",
-        "process_list": "لیست فرایندها", "process_kill": "پایان فرایند",
-        "kill_process": "پایان فرایند", "process_start": "شروع فرایند",
-        "service_status": "وضعیت سرویس", "service_restart": "راه‌اندازی مجدد سرویس",
-        "service_start": "شروع سرویس", "service_stop": "توقف سرویس",
-        "pip_install": "نصب پکیج پایتون", "apt_install": "نصب پکیج",
-        "network_change": "تغییر شبکه",
-        "write_file": "نوشتن فایل", "read_file": "خواندن فایل",
-        "list_directory": "لیست پوشه", "search_files": "جستجو",
-        "delete_file": "حذف فایل", "mkdir": "ساخت پوشه",
-        "copy_file": "کپی فایل", "move_file": "انتقال فایل",
-        "edit_file": "ویرایش فایل",
+        "shell_run_command": "Shell command", "run_command": "Shell command",
+        "camera_look": "Camera", "camera_capture": "Camera capture",
+        "camera_list": "Camera list",
+        "browser_launch": "Browser", "browser_open": "Open page",
+        "browser_read": "Read page", "browser_click": "Browser click",
+        "browser_type": "Browser input", "browser_scroll": "Browser scroll",
+        "browser_screenshot": "Browser screenshot",
+        "gpu_status": "GPU status", "gpu_temperature": "GPU temperature",
+        "fs_read_file": "Read file", "fs_write_file": "Write file",
+        "fs_edit_file": "Edit file", "fs_list_directory": "List directory",
+        "fs_create_file": "Create file", "fs_search_files": "Search files",
+        "capture_screen": "Capture screen", "vision_describe": "Describe image",
+        "vision_screen": "Analyze screen",
+        "process_list": "List processes", "process_kill": "Stop process",
+        "kill_process": "Stop process", "process_start": "Start process",
+        "service_status": "Service status", "service_restart": "Restart service",
+        "service_start": "Start service", "service_stop": "Stop service",
+        "pip_install": "Install Python package", "apt_install": "Install package",
+        "network_change": "Change network",
+        "write_file": "Write file", "read_file": "Read file",
+        "list_directory": "List directory", "search_files": "Search files",
+        "delete_file": "Delete file", "mkdir": "Create directory",
+        "copy_file": "Copy file", "move_file": "Move file",
+        "edit_file": "Edit file",
     }
 
     @classmethod
@@ -176,9 +192,7 @@ class Agent:
         return not remainder
 
     def _describe_step(self, name: str, args: dict) -> str:
-        """Build a live Persian announcement shown *before* a tool runs,
-        so a long shell command never looks silent.  Includes the command
-        itself for the shell tool — the most important case."""
+        """Build an English live announcement shown before a tool runs."""
         label = self._TOOL_LABELS.get(name) or name
         parts = []
         if name in ("shell_run_command", "run_command"):
@@ -194,13 +208,18 @@ class Agent:
                 parts.append(compact)
             elif compact:
                 parts.append(compact[:117] + "...")
-        base = f"الان دارم «{label}» را اجرا می‌کنم"
+        base = f"Running {label}"
         return base + ((" — " + " ".join(parts)) if parts else "")
+
+    @staticmethod
+    def _tool_failed(result: dict | object) -> bool:
+        if not isinstance(result, dict):
+            return False
+        return bool(result.get("blocked") is True or result.get("error"))
 
     def _recover_answer(self, transcript: list, user_input: str,
                         messages: list[dict], model: str) -> str:
-        """Model emitted only junk ("}") — build a real Persian reply from
-        the tool results instead of echoing the junk."""
+        """Model emitted only junk; build a useful reply from tool results."""
         # Prettiest path: vision tools carry a human `description` field.
         for t in reversed(transcript):
             if "tool" not in t or "result" not in t:
@@ -210,9 +229,9 @@ class Agent:
                 desc = str(r["description"]).strip()
                 if not desc:
                     continue
-                head = {"camera_look": "دوربین را فعال کردم و این را دیدم: ",
-                        "vision_screen": "صفحه‌نمایش را بررسی کردم: ",
-                        "vision_describe": "تصویر را بررسی کردم: "
+                head = {"camera_look": "Camera result: ",
+                    "vision_screen": "Screen analysis: ",
+                    "vision_describe": "Image description: "
                         }.get(t["tool"], "")
                 reply = head + desc
                 self.memory.add_message({"role": "user",
@@ -262,8 +281,7 @@ class Agent:
         # need a nudge round AND a final answer round on top of real steps.
         max_steps = step_offset + self.max_iterations + 2
         messages.append({"role": "user",
-                        "content": ("ادامه بده — همان کار ناتمام را تا پایان "
-                                   "ادامه بده و کاملش کن.")})
+                "content": "Continue the unfinished task until it is complete."})
         for step in range(step_offset, max_steps):
             resp = self._resume_step(messages, transcript, step,
                                       model, intent, nudged_box,
@@ -312,12 +330,11 @@ class Agent:
                 messages.append({
                     "role": "user",
                     "content": (
-                        "شما هنوز ابزاری اجرا نکرده‌اید. درخواست کاربر "
-                        "به ابزار نیاز دارد — همین حالا یک ابزار واقعی "
-                        "(مثل browser_launch، shell_run_command، "
-                        "fs_* ...) را صدا بزنید. فقط توصیف نکنید؛ عمل کنید."),
-                })
-                return None      # keep looping (need another inference round)
+                        "No tool has been run yet, but this request requires "
+                        "one. Call an appropriate available tool now; do not "
+                        "just describe the action."),
+                    })
+            return None      # keep looping (need another inference round)
             return content
 
         results = []
@@ -355,8 +372,8 @@ class Agent:
                             on_step({"step": step, "phase": "progress",
                                      "tool": name,
                                      "message": (
-                                         f"⏳ هنوز دارم «{label}» را اجرا می‌کنم — "
-                                         f"{waited} ثانیه گذشته، لطفاً صبر کن...")})
+                                         f"⏳ Still running {label} — "
+                                         f"{waited} seconds elapsed...")})
                         except Exception:
                             pass
 
@@ -386,7 +403,21 @@ class Agent:
         return None      # keep looping (assistant already replied via on_stream)
 
     def run(self, user_input: str, on_stream=None, on_step=None,
-            history=None) -> str:
+            history=None, session_id: str = "cli") -> str:
+        answer = self._run(user_input, on_stream=on_stream, on_step=on_step,
+                           history=history)
+        base = getattr(self.episodic, "base", None)
+        remember = getattr(base, "remember_session_message", None)
+        if callable(remember):
+            try:
+                remember(session_id, "user", user_input)
+                remember(session_id, "assistant", answer)
+            except Exception:  # noqa: BLE001 — persistence must not break a reply
+                pass
+        return answer
+
+    def _run(self, user_input: str, on_stream=None, on_step=None,
+             history=None) -> str:
         # Resume an unfinished task:when the user says «ادامه بده», continue
         # with the SAME transcript+messages, so the work isn't lost.
 
@@ -456,10 +487,9 @@ class Agent:
                     messages.append({
                         "role": "user",
                         "content": (
-                            "شما هنوز ابزاری اجرا نکرده‌اید. درخواست کاربر "
-                            "به ابزار نیاز دارد — همین حالا یک ابزار واقعی "
-                            "(مثل browser_launch، shell_run_command، "
-                            "fs_* ...) را صدا بزنید. فقط توصیف نکنید؛ عمل کنید."),
+                            "No tool has been run yet, but this request requires "
+                            "one. Call an appropriate available tool now; do not "
+                            "just describe the action."),
                     })
                     continue
                 self.memory.add_message({"role": "user",
@@ -471,6 +501,7 @@ class Agent:
                     {"steps": len(transcript) - 1,
                      "intent": intent, "model": model,
                      "nudged": nudged})
+                self._learn_skill(user_input, content, transcript)
                 return content
 
             # execute each requested tool call
@@ -488,8 +519,7 @@ class Agent:
                     args = args_raw or {}
                 else:
                     args = {}
-                # live progress: announce *before* dispatching so the user
-                # sees "الان دارم ..." while a slow command (sudo apt...) is running.
+                # Announce before dispatch so a long-running tool stays visible.
                 if on_step is not None:
                     try:
                         on_step({"step": step, "phase": "start", "tool": name,
@@ -499,8 +529,7 @@ class Agent:
                     except Exception:
                         pass
                 # heartbeat: a slow command (sudo apt purge...) must keep
-                # talking — every 8s while it runs, show "هنوز دارم ...
-                # را اجرا می‌کنم — N ثانیه گذشته...".
+                # Send a progress update every few seconds while a tool runs.
                 stop_hb = threading.Event()
 
                 def _heartbeat():
@@ -513,8 +542,8 @@ class Agent:
                                 on_step({"step": step, "phase": "progress",
                                          "tool": name,
                                          "message": (
-                                             f"⏳ هنوز دارم «{label}» را اجرا می‌کنم — "
-                                             f"{waited} ثانیه گذشته، لطفاً صبر کن...")})
+                                             f"⏳ Still running {label} — "
+                                             f"{waited} seconds elapsed...")})
                             except Exception:
                                 pass
 
@@ -542,7 +571,19 @@ class Agent:
                 transcript.append({"step": step, "tool": name,
                                    "args": args, "result": result})
 
+                if self._tool_failed(result):
+                    messages.append({
+                        "role": "user",
+                            "content": (
+                            f"Tool {name!r} failed with result: {result}. "
+                            "Choose a valid, safe alternative tool and try again."
+                        )
+                    })
+                    break
+
             self.last_toolcalls = results
+            if any(self._tool_failed(item["result"]) for item in results):
+                continue
 
         # iteration cap reached — keep the chain alive so the user can say
         # «ادامه بده» and we resume EXACTLY here (same messages+transcript).
@@ -565,9 +606,10 @@ class Agent:
             wrap = list(messages) + [{
                 "role": "user",
                 "content": (
-                    "به حداکثر تعداد گام ابزار رسیده‌ای. کارهای انجام‌شده و "
-                    "یافته‌ها را در حداکثر ۴ خط فارسی خلاصه کن: وضعیت فعلی "
-                    "چیست و اگر کاری ناتمام مانده صریح بگو. ابزار صدا نزن."),
+                    "The tool-step limit has been reached. Summarize the work "
+                    "and findings in at most four lines, in the same language "
+                    "as the user's original request. State clearly if anything "
+                    "remains unfinished. Do not call tools."),
             }]
             resp = self.llm.chat(wrap, tools=None, model=model)
             content = ((resp.get("message") or {}).get("content") or "").strip()
@@ -584,14 +626,14 @@ class Agent:
         except Exception:
             pass
         # structured fallback — compact and human-readable
-        lines = [f"به سقف {self.max_iterations} گام رسیدم؛ آنچه انجام شد:"]
+        lines = [f"Reached the {self.max_iterations}-step limit. Completed work:"]
         if tools_used:
-            lines.append("ابزارها: " + ", ".join(tools_used[-6:]))
+            lines.append("Tools: " + ", ".join(tools_used[-6:]))
         last = transcript[-1] if transcript else {}
         if "result" in last:
             rs = json.dumps(last["result"], ensure_ascii=False, default=str)
-            lines.append("آخرین نتیجه: " + rs[:300])
-        lines.append("برای ادامه بگو «ادامه بده».")
+            lines.append("Latest result: " + rs[:300])
+        lines.append("Send 'continue' to resume.")
         self.episodic.record(
             f"Task '{user_input}' hit iteration cap",
             {"steps": self.max_iterations, "tools": tools_used[-6:]})

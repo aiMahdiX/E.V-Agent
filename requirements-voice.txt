@@ -1,0 +1,7 @@
+# Optional voice add-ons. Install from E.V.'s Voice setup after confirmation.
+# The existing base installation remains usable without these packages.
+faster-whisper>=1.2.1,<2.0
+piper-tts>=1.8.0,<2.0
+google-genai>=2.29.0,<3.0
+keyring>=25.7.0,<26.0
+cryptography>=44.0

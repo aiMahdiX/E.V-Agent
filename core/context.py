@@ -13,10 +13,12 @@ import time
 
 from memory.long_term import LongTermMemory
 
-PERSONA = """You are {name}, a local multimodal OS agent running on Mahdi's
-machine. You are helpful, precise and autonomous. You communicate in Persian
-but keep technical terms, commands and code in English. You address the user
-as {user_name}.
+PERSONA = """You are {name}, a local multimodal OS agent running on the user's
+machine. You are helpful, precise and autonomous. Reply in the language used
+in the user's current message, while keeping technical terms, commands and
+code in English. Detect the response language independently on every turn;
+the current message overrides stored profile facts and configured defaults.
+You address the user as {user_name}.
 
 You act, you do not just describe. When the user asks to fix or inspect
 something, use the available tools (shell, files, processes, services, GPU)
@@ -30,7 +32,8 @@ Rules:
 - Prefer local tools and the local LLM; go online only when required.
 - For privileged/destructive actions the permission system may block you;
   if blocked, explain what would be needed.
-- Keep responses concise and in Persian, with commands kept in English."""
+- Keep responses concise and in the user's current language, with commands
+    kept in English."""
 
 
 class ContextBuilder:
@@ -45,13 +48,18 @@ class ContextBuilder:
         self.memory = memory
         self.tool_names = tool_names
         self._persona = self._build_persona()
-        self._lang = config.get("agent", {}).get("language", "Persian")
+        self._lang = config.get("agent", {}).get("language", "auto")
         self._state_cache = ("", 0.0)
+        self._skills = None          # optional SkillEngine (Phase 7)
+
+    def attach_skills(self, skill_engine) -> None:
+        """Attach the SkillEngine so learned skills appear in the prompt."""
+        self._skills = skill_engine
 
     def _build_persona(self) -> str:
         a = self.config.get("agent", {})
         return PERSONA.format(name=a.get("name", "E.V."),
-                              user_name=a.get("user_name", "Mahdi"))
+                              user_name=a.get("user_name", "User"))
 
     def persona(self) -> str:
         return self._persona
@@ -88,14 +96,46 @@ class ContextBuilder:
             return "(no long-term facts recorded yet)"
         return "\n".join(f"- {k}: {v}" for k, v in facts.items())
 
-    def system_prompt(self) -> str:
+    def profile_block(self) -> str:
+        if hasattr(self.memory, "get_profile"):
+            profile = self.memory.get_profile()
+            if profile:
+                return "\n".join(f"- {k}: {v}" for k, v in profile.items())
+        return "(no user profile recorded yet)"
+
+    def system_prompt(self, user_query: str = "") -> str:
+        relevant = self.memory.search_events(user_query, limit=3) \
+            if user_query else []
+        past_events = ("\n".join(
+            f"- {event['summary'][:240]}" for event in relevant)
+            if relevant else "(no relevant past events)")
+
+        semantic_memory = []
+        if hasattr(self.memory, "search_semantic"):
+            semantic_memory = self.memory.search_semantic(user_query or "", limit=3)
+        semantic_block = ("\n".join(f"- {item}" for item in semantic_memory)
+                          if semantic_memory else "(no relevant semantic memories)")
+
         body = [
             self._persona,
             "\n# Live system state",
             self.system_state(),
+            "\n# Learned skills (reusable plans)",
+            (self._skills.context_block(user_query)
+             if self._skills is not None
+             else "(no skills learned yet)"),
             "\n# Known long-term facts",
             self.facts_block(),
+            "\n# User profile (local personalization)",
+            self.profile_block(),
+            "\n# Relevant past events (local memory)",
+            past_events,
+            "\n# Relevant semantic memories (local memory)",
+            semantic_block,
             "\n# Available tools: " + ", ".join(self.tool_names),
-            f"\nPreferred language: {self._lang}",
+            f"\nConfigured response language: {self._lang}",
+            "Always answer in the language used in the current user message. "
+            "This rule overrides the configured language and any older profile "
+            "or memory preference.",
         ]
         return "\n".join(body)

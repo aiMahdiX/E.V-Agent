@@ -39,27 +39,37 @@ class EnergyVAD:
     """
 
     def __init__(self, frame_ms: int = 20, threshold: float = 180.0,
-                 adapt_rate: float = 0.05):
+                 adapt_rate: float = 0.05, hangover_ms: int = 240):
         self.frame_ms = frame_ms
         self.threshold = threshold
         self.adapt_rate = adapt_rate
+        self.hangover_frames = max(1, (hangover_ms + frame_ms - 1) // frame_ms)
+        self._silence_frames = 0
         self.noise_floor = threshold
         self.active = False
 
     def feed(self, frame: bytes) -> bool:
         e = _energy(frame)
         if self.active:
-            self.threshold = max(self.threshold * (1 - self.adapt_rate),
-                                 e * 0.9 + self.threshold * 0.1)
-            return True
+            if e > self.threshold:
+                self._silence_frames = 0
+                return True
+            self._silence_frames += 1
+            if self._silence_frames < self.hangover_frames:
+                return True
+            self.active = False
+            self._silence_frames = 0
         if e < self.noise_floor:
             self.noise_floor = self.noise_floor * (1 - self.adapt_rate) + \
                 e * self.adapt_rate
         self.active = e > self.threshold
+        if self.active:
+            self._silence_frames = 0
         return self.active
 
     def reset(self) -> None:
         self.active = False
+        self._silence_frames = 0
 
 
 class WebRTCVAD:

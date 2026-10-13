@@ -10,6 +10,7 @@ wake-word + STT + TTS + Agent pipeline.
 from __future__ import annotations
 
 import time
+import threading
 
 from voice import mic
 from voice.vad import VAD
@@ -37,36 +38,69 @@ class VoiceLoop:
         self.wake = wake or WakeWord(stt=self.stt, vad=VAD(frame_ms=20))
         self.on_status = on_status or (lambda m: print(f"[voice] {m}"))
         self.running = False
+        self._stop_event = threading.Event()
 
     def _say(self, text: str) -> None:
         if text:
-            self.tts.speak(text, block=False)
+            try:
+                self.tts.speak(text, block=False)
+            except Exception as exc:  # noqa: BLE001 — speech failure must not stop text agent
+                self.on_status(f"voice output unavailable: {exc}")
 
     # ------------------------------------------------------------------ #
     def run(self, wake_timeout: float = 120.0) -> None:
         self.running = True
+        self._stop_event.clear()
         self.on_status("listening for wake word…")
-        while self.running:
-            if not self.wake.wait_for_wake(timeout=wake_timeout):
+        while self.running and not self._stop_event.is_set():
+            try:
+                woke = self.wake.wait_for_wake(
+                    timeout=wake_timeout, stop_event=self._stop_event)
+            except TypeError:  # compatibility with existing wake adapters
+                woke = self.wake.wait_for_wake(timeout=wake_timeout)
+            except Exception as exc:  # noqa: BLE001 — text mode remains usable
+                self.on_status(f"microphone unavailable: {exc}")
+                break
+            if self._stop_event.is_set():
+                break
+            if not woke:
                 self.on_status("wake timeout, still listening…")
                 continue
             self.on_status("woke up — listening…")
-            cmd = capture_utterance(self.stt,
-                                    vad=VAD(frame_ms=20), timeout=12.0)
+            try:
+                cmd = capture_utterance(self.stt,
+                                        vad=VAD(frame_ms=20), timeout=12.0,
+                                        stop_event=self._stop_event)
+            except Exception as exc:  # noqa: BLE001 — ASR failure is recoverable
+                self.on_status(f"speech recognition failed: {exc}")
+                continue
+            if self._stop_event.is_set():
+                break
             if not cmd:
                 self.on_status("(silence)")
                 continue
-            self.on_status(f"Heard: {cmd}")
-            reply = self.agent.run(cmd)
+            self.on_status("Speech recognized; processing through E.V.…")
+            try:
+                reply = self.agent.run(cmd)
+            except Exception as exc:  # noqa: BLE001 — return to listening after agent errors
+                self.on_status(f"agent request failed: {exc}")
+                continue
             self._say(reply)
+        self.running = False
+        self.on_status("voice session stopped")
 
     def stop(self) -> None:
         self.running = False
+        self._stop_event.set()
+        stop_tts = getattr(self.tts, "stop", None)
+        if callable(stop_tts):
+            stop_tts()
 
 
 def capture_utterance(stt, vad: VAD | None = None, timeout: float = 15.0,
                       frame_ms: int = 20, sample_rate: int = mic.RATE,
-                      max_silence_ms: int = 500) -> str:
+                      max_silence_ms: int = 500,
+                      stop_event: threading.Event | None = None) -> str:
     """Record one utterance and transcribe it.
 
     Returns the transcript (possibly empty). `stt` is any object with a
@@ -93,7 +127,8 @@ def capture_utterance(stt, vad: VAD | None = None, timeout: float = 15.0,
     stream.on_frame(on_frame)
     stream.start()
     try:
-        while time.time() - start < timeout:
+        while time.time() - start < timeout \
+            and not (stop_event and stop_event.is_set()):
             if saw_speech and silence_ms >= max_silence_ms:
                 break
             time.sleep(0.02)

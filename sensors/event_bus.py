@@ -1,4 +1,4 @@
-"""Event Bus (Phase 5 — proactive system)."""
+"""Lightweight in-process event bus for safe local monitoring."""
 from __future__ import annotations
 
 from collections import defaultdict
@@ -17,8 +17,9 @@ class EventBus:
         self._subs[event].append(handler)
 
     def publish(self, event: str, payload: dict | None = None) -> None:
-        for handler in self._subs.get(event, []):
-            handler(payload or {})
-
-    def start(self) -> None:
-        raise NotImplementedError("Event bus loop not started (Phase 5)")
+        data = {"event": event, **dict(payload or {})}
+        for handler in list(self._subs.get(event, [])):
+            try:
+                handler(data)
+            except Exception as exc:  # pragma: no cover - defensive logging
+                print(f"[event-bus] {event} handler failed: {exc}")

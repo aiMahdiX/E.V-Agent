@@ -1,21 +1,23 @@
 # E.V. — Local Multimodal OS Agent
 
-E.V. is a local-first multimodal OS agent for a Linux laptop with an NVIDIA
-GPU. This repository implements the **Phase 1 MVP** and a **hybrid tool
-architecture** (native tools + MCP) with the remaining phases scaffolded as
-clear interfaces.
+E.V. is a local-first multimodal agent for Linux. It combines a ReAct agent,
+native operating-system tools, optional MCP integrations, local or hosted
+language models, and a web HUD. Hardware-dependent capabilities degrade
+gracefully when their optional runtimes or devices are unavailable.
 
 ## Hardware layer
-- **CPU**: Intel i7-11600H (12 threads)
-- **RAM**: 16 GB (14 GB usable)
-- **GPU**: NVIDIA RTX 3050 Laptop (4 GB)
-- **OS** : Ubuntu / Linux
-- **LLM**: Ollama (local)
+- Setup detects the current CPU, available RAM, free disk, and NVIDIA VRAM.
+- It recommends a local model when resources permit; cloud is an available
+  alternative when selected by the user or when local inference is unsuitable.
+- **Inference choices**: Ollama local, or a configured hosted provider such as
+  OpenAI, Gemini, OpenRouter, Groq, DeepSeek, Mistral, Together AI, xAI, or
+  Ashna AI. Other OpenAI-compatible endpoints can be entered manually.
 
 ## What is implemented (Phase 1 + hybrid)
-- **Agent Core** — ReAct loop over Ollama's native tool-calling protocol
+- **Agent Core** — ReAct loop over provider-neutral tool-calling
   (`core/agent.py`)
-- **Ollama client** — pure-stdlib HTTP client (`models/llm.py`)
+- **LLM providers** — Ollama plus configurable OpenAI-compatible APIs
+  (including Ashna.ai), with a small provider factory registry (`models/llm.py`)
 - **Dynamic Model Router** — uses *any* model present in Ollama: smallest for
   simple chat, largest for planning/troubleshooting, honors `fast/main/vision`
   preferences when those exact models exist (`core/router.py`)
@@ -25,12 +27,76 @@ clear interfaces.
   - native tools: Shell / Filesystem / Process / Services / GPU (`tools/`)
   - MCP client + registry + discovery (`tools/mcp/`) — stdio JSON-RPC
 - **Memory** — short-term window + long-term SQLite facts + episodic events
-  (`memory/`)
+  (`memory/`); relevant past events are retrieved locally into each request
 - **Security** — permission Levels 0..4 gating every action (`security/`)
 - **CLI** — interactive `ev>` REPL (`ui/cli/repl.py`)
 
-Phase 1 runs entirely on the Python standard library — no third-party
-installs required (the MCP client is dependency-free too).
+Ollama remains dependency-free. The base install adds `aiohttp` for the local
+web HUD. OpenAI-compatible API providers additionally require the optional
+`openai` package and their provider API key; the provider wizard installs the
+SDK after the user chooses a hosted provider.
+
+## Telegram remote control
+
+The optional Telegram gateway accepts private messages only from explicitly
+allowlisted Telegram user IDs. Revoke any bot token pasted into chat or source
+control, then configure the replacement token and your numeric Telegram user
+ID in the shell before starting E.V.:
+
+```bash
+export TELEGRAM_BOT_TOKEN='token-from-BotFather'
+export TELEGRAM_ALLOWED_USER_IDS='123456789'
+.venv/bin/python main.py
+```
+
+Multiple allowed IDs can be comma-separated. Without both variables the
+gateway stays disabled. Sensitive actions still require a one-time `/approve
+<code>` or `/deny <code>` reply in the same private chat; approval codes expire
+after two minutes. The bot does not expose a public HTTP endpoint.
+
+## Languages
+
+The CLI, Telegram status messages, and web HUD use English. Text replies are
+prompted to follow the language of each current user message; that takes
+precedence over `agent.language` and older profile or memory preferences.
+Set `agent.language` to `auto` to keep this behavior as the default. The
+current voice pipeline is still Persian-specific: its bundled Vosk STT model
+and default Piper voice are Persian, so multilingual typed chat is supported
+but multilingual speech recognition and synthesis are not yet provided.
+
+## Phase 7 — Self-improvement loop (Skills + Semantic memory)
+
+E.V. now has the learning loop that makes it *better the longer it runs* —
+patterned after Hermes Agent's skill system, but sized for a 4 GB laptop:
+
+- **Skills** (`skills/`) — every successful multi-tool run is consolidated
+  into a reusable, versioned skill (`data/skills.json`): goal, observed tool
+  steps, tags, usage counters. The top-k skills are injected into the system
+  prompt, so proven plans are replayed instead of re-derived. The model can
+  list/run/create skills through the `skill_list` / `skill_run` /
+  `skill_create` tools, and you can manage them in the CLI:
+
+  ```
+  /skills              # list learned skills
+  /skills run <id>     # replay a skill now
+  /skills rm <id>      # delete one
+  ```
+
+  Replay adapts to drift: each step's arguments are re-checked by the LLM
+  against the current situation before dispatch, and results/usage are
+  recorded back into the skill.
+
+- **Semantic memory** (`memory/semantic.py` + `memory/embeddings.py`) —
+  retrieval upgraded from plain TF-IDF to a blended score: character n-gram
+  hash embeddings (dependency-free, Persian + Latin) **plus** true neural
+  embeddings via the local Ollama server (`/api/embed`, default model
+  `nomic-embed-text`) whenever it is available — automatic hash fallback
+  otherwise. Facts and episodes are labeled (`[fact]` / `[episode]`) in the
+  prompt so the model knows where a memory came from.
+
+- **FTS5 recall** (`memory/long_term.py`) — the episodic store now has a
+  full-text index (BM25-ranked, trigger-maintained) with a LIKE fallback on
+  older SQLite builds.
 
 ## Hybrid tool architecture
 
@@ -73,17 +139,78 @@ its `tools/list`, registers a Capability, and exposes those tools to the LLM.
 A working reference server is at `mcp_servers/echo_demo/`. Skeletons for
 `vision`, `game`, `browser`, `home` are present but disabled.
 
-## Quick start
+Public GitHub MCP repositories that follow this manifest format can be staged
+from the CLI:
+
+```text
+/mcp install https://github.com/owner/repository
+/mcp list
+```
+
+Installation clones the repository into the configured MCP directory and
+forces its root-level `server.json` to `enabled: false`. Review the repository
+and manifest before enabling it with `/mcp enable <id>`; the command in the
+manifest will run on the next E.V. startup. Use `/mcp disable <id>` to prevent
+future startup execution. E.V. does not install Python/npm dependencies
+automatically, and this installer only accepts repositories with a valid
+root-level `server.json` containing `name` and `command` (and optional string
+`args`). MCP tools from unconfigured servers require approval by default.
+
+### Optional Laya decision tools
+
+[Laya](https://github.com/NandhaKishorM/laya) provides typed `choice`, `score`,
+and yes/no decisions, plus routing and triage presets. It does not generate
+chat responses and must not replace E.V.'s permission policy. To add its
+official MCP tools without changing the base install:
 
 ```bash
-cd /home/aimahdix/Desktop/e.v
+.venv/bin/python3 -m pip install -r requirements-laya.txt
+# then in E.V.:
+/mcp enable laya
+```
+
+The server starts on CPU with checkpoint preloading disabled; its first
+prediction may download model weights from Hugging Face. Every Laya tool call
+uses E.V.'s normal MCP approval gate. Treat predictions as advisory until
+validated on representative tasks, and keep privileged or destructive actions
+behind the existing security controls. The adapter is a small launcher around
+Laya's Apache-2.0 package; no upstream source is copied into this repository.
+
+## Quick start
+
+Requires Python 3.10 or newer. Local inference additionally requires Ollama;
+cloud providers are configured separately through the setup wizard.
+
+```bash
+cd /path/to/e.v
 chmod +x setup.sh
-./setup.sh              # venv + start Ollama + pull model (qwen3:4b)
+./setup.sh              # detect hardware; choose local, cloud, or manual setup
 .venv/bin/python3 main.py
 ```
 
-Choose a different setup model:
+The recommendation uses available RAM, NVIDIA VRAM, and free disk space. In
+interactive setup, choose local, cloud, or a manual local model. Cloud setup
+supports `openai`, `gemini`, `openrouter`, `groq`, `deepseek`, `mistral`,
+`together`, `xai`, `ashna`, and `custom` provider IDs. Other OpenAI-compatible
+services can use `custom` with their API base URL and model ID.
+
+Before asking for a key, setup explains that validation sends one short test
+prompt and may incur a small charge. It saves the key only after validation,
+inside the ignored `.env` file with mode `0600`. Normal chat text is then sent
+to the selected provider; microphone audio is not enabled or uploaded by this
+setup. Built-in tools remain available under the existing permission system.
+Review optional MCP server code before enabling it.
+
+Select cloud directly, or force automatic local recommendation:
 ```bash
+./setup.sh --cloud gemini
+./setup.sh --local
+```
+
+Choose a model manually:
+```bash
+./setup.sh --manual qwen3:4b
+# An explicit model name remains supported:
 ./setup.sh qwen3:8b
 ```
 
@@ -105,22 +232,62 @@ ev> Ollama سرویس رو چک کن
 | `/remember <key> <value>` | store a long-term fact |
 | `/episodes` | recent episodic memory |
 | `/tasks` | list tracked tasks |
+| `/skills` | learned skills (`run <id>` / `rm <id>`) |
+| `/mcp` | install/list/enable/disable GitHub MCP servers |
+| `/settings` | inspect/update app settings and platform credentials |
+| `/permission` | show/set the auto-approval limit (`/permission set 0..4`) |
 | `/hud` | open the graphical web HUD in the browser |
 | `/clear` | reset conversation |
 | `/exit` | quit |
 
-## Configuration (`config.json`)
+## Configuration (`.env` and `config.json`)
+- `main.py` loads `.env` on startup; `EV__` variables map to nested config
+  keys using double underscores (for example, `EV__OLLAMA__HOST`). Values
+  should be JSON literals so strings, numbers, booleans, arrays, and `null`
+  keep their types. Existing process environment variables override `.env`;
+  `.env` overrides `config.json`.
+- Copy `.env.example` to `.env` and put secrets such as `ASHNA_API_KEY` there.
+  The local `.env` file is ignored by Git.
+- `providers.default` selects the provider used when a model is not qualified
+- `providers.instances` declares provider clients; model names use
+  `provider:model-name` when routing to a specific provider
+- Set `ASHNA_API_KEY` in the environment to enable the configured Ashna client;
+  then set `model_selection.fixed` to `ashna:gpt-6-astra` to use it by default
+- To switch the default config to Ashna, export the key before launching E.V.:
+  ```bash
+  export ASHNA_API_KEY="your-key"
+  ```
+  Set `providers.default` to `ashna`, `model_selection.mode` to `fixed`, and
+  `model_selection.fixed` to `ashna:gpt-6-astra` in `config.json`.
+- To add another compatible service, add an `openai-compatible` instance with
+  its `base_url`, `model`, and `api_key_env`; for a different protocol, register
+  a factory with `register_provider(name, factory)` in `models/llm.py`
 - `ollama.models` — preferred `fast`/`main`/`vision` names (used only if they
   exist locally; else the router falls back to size-based picks)
 - `ollama.default` — the model used for warm-up / generic calls
 - `ollama.keep_alive`, `ollama.think`, `ollama.max_tokens`, `ollama.num_ctx`
   — latency tuning (see Turbo mode below)
 - `model_selection.mode` — `auto` (default) or `fixed`
+- Local-only model routing is the default (`include_cloud: false`); set it to
+  `true` and choose a cloud model explicitly to enable remote inference
+- `agent.language` — `auto` follows the current user message language and
+  overrides older language preferences in profile memory
 - `agent.turbo_threshold` — complexity cut-off for the streamed no-tools path
 - `tools.native` / `tools.mcp` — capability priorities and providers
 - `tools.mcp_dir` — directory scanned for MCP `server.json` manifests
-- `security.auto_approve_until_level` — auto-allow up to this Level (default 2)
+- `security.auto_approve_until_level` — configure the automatic approval
+  threshold (0..4) with `/permission set <0..4>` or HUD Settings. Level 3/4
+  actions and MCP tools with `needs_approval: true` always require explicit
+  approval, regardless of the threshold.
+- Commands using `sudo` ask for the system password separately: the terminal
+  uses a hidden password prompt, while the HUD uses the OS `pkexec` dialog.
+  If the graphical prompt is unavailable, HUD execution is blocked.
 - `agent.max_react_iterations` — ReAct loop cap
+- `memory.semantic.embed_model` — Ollama embedding model for semantic
+  retrieval (`nomic-embed-text` by default; automatic hash fallback when the
+  model/server is missing)
+- `memory.semantic.skills_top_k` — how many learned skills are injected into
+  each system prompt (default 5)
 
 ## Phase 2 — Voice (working)
 
@@ -220,10 +387,12 @@ Endpoints: `GET /`, `GET /static/*`, `GET /api/status`, `POST /api/chat`
 worker threads; voice back-ends load lazily so the HUD boots even without
 Vosk/Piper models installed.
 
-Config: `web.enabled` (default `true`), `web.host`, `web.port`.
+Config: `web.enabled` (default `true`), `web.host`, `web.port`. The HUD has no
+remote authentication and only starts on `localhost` or a loopback IP; remote
+bind addresses are rejected because the API can execute local tools.
 Disable by setting `"web": {"enabled": false, ...}`.
 
-## Architecture map (future)
+## Architecture map
 | Phase | Area | Status |
 |---|---|---|
 | 1 | Ollama + Agent + Core + Shell/FS + Memory + CLI | **implemented** |
@@ -231,8 +400,14 @@ Disable by setting `"web": {"enabled": false, ...}`.
 | 3 | Screen / GUI / Browser (incl. MCP) | **implemented** (`tools/browser.py`, `tools/screen.py`, `tools/gui.py`) |
 | 4 | Camera / Vision (incl. MCP) | **implemented** (`tools/camera.py`, `tools/vision.py`, `models/vision.py`) |
 | — | Web HUD (`ui/web/`) | **implemented** (`main.py`, `ui/web/server.py`, `ui/web/static/`) |
-| 5 | Proactive monitoring / Event bus | scaffolded (`sensors/event_bus.py`) |
-| 6 | Semantic memory / Personality / Self-recovery | scaffolded (`memory/semantic.py`) |
+| 5 | Local task reminders / scheduler + event bus | **implemented** (`tasks/scheduler.py`, `sensors/event_bus.py`, `sensors/system_monitor.py`, `sensors/gpu_monitor.py`) |
+| 6 | Semantic memory / Personality / Self-recovery | **implemented** (`memory/semantic.py`, real embeddings + FTS5) |
+| 7 | Skills / self-improvement loop | **implemented** (`skills/`) |
+
+Local schedules survive restarts and only notify when due; they never execute
+tasks unattended. Use `/schedule in 10m <task>` for a one-shot reminder or
+`/schedule every 1h <task>` for a recurring reminder, `/schedules` to list,
+`/cancel <TASK-ID>` to cancel, and `/run <TASK-ID>` to explicitly execute.
 
 ## Tests
 ```bash
@@ -242,12 +417,22 @@ Disable by setting `"web": {"enabled": false, ...}`.
 .venv/bin/python3 _smoke_voice.py    # Phase 2: VAD + Vosk model + wake word
 .venv/bin/python3 _smoke_phase3.py   # Phase 3: browser/screen/gui + MCP browser
 .venv/bin/python3 _smoke_phase4.py   # Phase 4: camera capture + vision model + MCP vision
+.venv/bin/python3 _smoke_skills.py   # Phase 7: skills + semantic + FTS5
+.venv/bin/python3 _smoke_env.py      # .env config loading and environment precedence
+.venv/bin/python3 _smoke_settings.py # terminal + HUD settings and secret handling
+.venv/bin/python3 _smoke_security_controls.py # permission levels + terminal/HUD sudo prompts
+.venv/bin/python3 _smoke_provider_setup.py # hosted-provider onboarding (offline)
+.venv/bin/python3 _smoke_laya_mcp.py # optional Laya MCP safety and approval wiring
 .venv/bin/python3 _smoke_web.py      # Web HUD server endpoints (SSE chat/TTS/STT/status)
 .venv/bin/python3 _smoke_latency.py  # live latency benchmark (needs Ollama)
 ```
 
+GitHub Actions runs the offline smoke subset on Python 3.11. Voice-device,
+camera, browser-driver, and live-model checks remain local because they require
+host hardware, system packages, or downloaded model weights.
+
 ## Latency / performance (Turbo mode)
-E.V. is tuned for low latency on the RTX 3050:
+These measurements and tuning notes are from an RTX 3050 Laptop with 4 GB VRAM:
 - **Warm preload** — the local model is loaded into VRAM at startup
   (`client.warm`).
 - **keep_alive 30m** — the model stays resident between turns; no reload

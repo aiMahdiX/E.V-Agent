@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -16,6 +19,9 @@ class Task:
     retries: int = 0
     result: dict = field(default_factory=dict)
     created: float = field(default_factory=time.time)
+    next_run_at: float | None = None
+    interval_seconds: int | None = None
+    due_count: int = 0
 
 
 class TaskManager:
@@ -23,6 +29,7 @@ class TaskManager:
         self.store = Path(store)
         self.store.parent.mkdir(parents=True, exist_ok=True)
         self._tasks: dict[str, Task] = {}
+        self._lock = threading.RLock()
         self._load()
         self._counter = max((int(t.id.split("-")[1]) for t in
                              self._tasks.values()
@@ -40,33 +47,52 @@ class TaskManager:
 
     def _save(self) -> None:
         payload = {k: v.__dict__ for k, v in self._tasks.items()}
-        self.store.write_text(json.dumps(payload, ensure_ascii=False,
-                                         indent=2))
+        data = json.dumps(payload, ensure_ascii=False, indent=2)
+        fd, temporary = tempfile.mkstemp(dir=self.store.parent,
+                                         prefix=self.store.name + ".")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(data)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(temporary, self.store)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
 
     def new(self, description: str) -> Task:
-        self._counter += 1
-        t = Task(id=f"TASK-{self._counter:04d}", description=description)
-        self._tasks[t.id] = t
-        self._save()
-        return t
+        with self._lock:
+            self._counter += 1
+            t = Task(id=f"TASK-{self._counter:04d}",
+                     description=description)
+            self._tasks[t.id] = t
+            self._save()
+            return t
 
     def get(self, tid: str) -> Task | None:
-        return self._tasks.get(tid)
+        with self._lock:
+            return self._tasks.get(tid)
 
     def update(self, tid: str, **kw) -> Task | None:
-        t = self.get(tid)
-        if not t:
-            return None
-        for k, v in kw.items():
-            setattr(t, k, v)
-        self._save()
-        return t
+        with self._lock:
+            t = self._tasks.get(tid)
+            if not t:
+                return None
+            for k, v in kw.items():
+                if not hasattr(t, k):
+                    raise AttributeError(f"unknown task field: {k}")
+                setattr(t, k, v)
+            self._save()
+            return t
 
     def add_step(self, tid: str, name: str, status: str) -> None:
-        t = self.get(tid)
-        if t:
-            t.steps.append({"name": name, "status": status, "ts": time.time()})
-            self._save()
+        with self._lock:
+            t = self._tasks.get(tid)
+            if t:
+                t.steps.append({"name": name, "status": status,
+                                "ts": time.time()})
+                self._save()
 
     def all(self) -> list[Task]:
-        return list(self._tasks.values())
+        with self._lock:
+            return list(self._tasks.values())

@@ -5,6 +5,7 @@ Endpoints
 GET  /                HUD (static/index.html)
 GET  /static/{file}   css/js assets
 GET  /api/status      cpu/ram/gpu/disk/model  (JSON)
+GET  /api/brief       configured productivity daily brief (JSON)
 POST /api/chat        SSE stream: state|token|step|done|error events
 POST /api/stt         browser audio (webm/ogg/wav) -> ffmpeg -> Vosk -> text
 POST /api/tts         {"text": ...} -> Piper WAV bytes
@@ -18,6 +19,7 @@ shares memory/tools with the CLI.
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import shutil
 import subprocess
@@ -213,18 +215,16 @@ def _find_approvals(agent) -> list:
     return out
 
 
-def create_app(agent, config: dict) -> web.Application:
+def create_app(agent, config: dict, briefing=None, settings=None,
+               voice_installer=None, voice_secrets=None) -> web.Application:
     v = config.get("voice", {})
-    stt_model = v.get("stt_model") or None
-    if stt_model and not Path(stt_model).is_absolute():
-        stt_model = str(ROOT / stt_model)
-    piper_model = v.get("tts_piper_model",
-                        "data/models/piper/fa_IR-amir-medium.onnx")
-    if not Path(piper_model).is_absolute():
-        piper_model = str(ROOT / piper_model)
-
-    from voice.stt import VoskSTT
-    from models.tts import TTSModel
+    from voice.config import normalize_voice_config
+    from voice.router import SpeechRouter, VoiceBackendError
+    from voice.tts import VoiceTTS
+    voice_settings = normalize_voice_config({"voice": v})["voice"]
+    if config.get("operating_mode", "local") == "local":
+        voice_settings["mode"] = "local"
+        voice_settings["allow_cloud_audio"] = False
 
     class _Lazy:
         """Build a voice backend on first use — HUD boots without it."""
@@ -245,9 +245,10 @@ def create_app(agent, config: dict) -> web.Application:
                             raise
             return self._obj
 
-    stt_lazy = _Lazy(lambda: VoskSTT(model_path=stt_model))
-    tts_lazy = _Lazy(lambda: TTSModel(
-        backend=v.get("tts_backend", "piper"), model_path=piper_model))
+    stt_lazy = _Lazy(lambda: SpeechRouter(
+        voice_settings, data_root=ROOT / "data" / "models"))
+    tts_lazy = _Lazy(lambda: VoiceTTS(
+        config=voice_settings, data_root=ROOT / "data" / "models"))
     try:  # preload Piper so the first spoken reply is instant
         tts_lazy.get().warm()
     except Exception:  # noqa: BLE001 - offline voice is best-effort
@@ -314,12 +315,42 @@ def create_app(agent, config: dict) -> web.Application:
             "ts": time.time(),
         })
 
+    # ---------------- GET /api/brief ---------------- #
+    async def brief(_req: web.Request) -> web.json_response:
+        def blocking() -> dict:
+            try:
+                if briefing is not None:
+                    return briefing()
+                from core.briefing import build_brief
+                return build_brief()
+            except Exception as exc:  # noqa: BLE001 - HUD must degrade cleanly
+                return {"ok": False, "error": str(exc)}
+
+        result = await asyncio.get_event_loop().run_in_executor(None, blocking)
+        return web.json_response(result)
+
+    async def clear_session(req: web.Request) -> web.Response:
+        body = await req.json()
+        session_id = str(body.get("session_id") or "")[:120]
+        if not session_id:
+            return web.json_response({"error": "session_id required"},
+                                     status=400)
+        base = getattr(getattr(agent, "episodic", None), "base", None)
+        delete = getattr(base, "delete_session_messages", None)
+        if not callable(delete):
+            return web.json_response({"error": "session storage unavailable"},
+                                     status=503)
+        removed = await asyncio.get_event_loop().run_in_executor(
+            None, delete, session_id)
+        return web.json_response({"ok": True, "deleted": removed})
+
     # ---------------- POST /api/chat (SSE) ---------------- #
     async def chat(req: web.Request) -> web.StreamResponse:
         body = await req.json()
         user_input = str(body.get("message", "")).strip()
         if not user_input:
             return web.json_response({"error": "empty message"}, status=400)
+        session_id = str(body.get("session_id") or "web")[:120]
         # optional session history (reopened web conversations) — the agent
         # seeds its context from these instead of the shared short-term mem
         history = None
@@ -394,7 +425,8 @@ def create_app(agent, config: dict) -> web.Application:
                 try:
                     kwargs = {} if history is None else {"history": history}
                     return agent.run(user_input, on_stream=cb_stream,
-                                     on_step=cb_step, **kwargs)
+                                     on_step=cb_step, session_id=session_id,
+                                     **kwargs)
                 except Exception as e:  # noqa: BLE001
                     return f"[Error] {e}"
                 finally:
@@ -462,7 +494,9 @@ def create_app(agent, config: dict) -> web.Application:
 
         def blocking() -> str:
             pcm = _to_pcm16(raw, mime)
-            return stt_lazy.get().transcribe_bytes(pcm)
+            language = req.headers.get("X-EV-Language") or None
+            return stt_lazy.get().transcribe_bytes(
+                pcm, sample_rate=16000, language=language)
 
         try:
             text = await asyncio.get_event_loop().run_in_executor(
@@ -484,8 +518,14 @@ def create_app(agent, config: dict) -> web.Application:
             return web.json_response({"error": "no text"}, status=400)
 
         def blocking() -> str:
-            out = tempfile.mktemp(suffix=".wav")
-            return str(tts_lazy.get().synthesize(text, out))
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as out:
+                output_path = out.name
+            try:
+                return str(tts_lazy.get().synthesize(
+                    text, output_path, language=body.get("language")))
+            except Exception:
+                Path(output_path).unlink(missing_ok=True)
+                raise
 
         try:
             wav = await asyncio.get_event_loop().run_in_executor(
@@ -531,16 +571,238 @@ def create_app(agent, config: dict) -> web.Application:
                 agent.model_override = name
         return web.json_response(_model_info(agent))
 
+    async def settings_get(_req: web.Request) -> web.json_response:
+        if settings is None:
+            return web.json_response({"error": "settings unavailable"},
+                                     status=503)
+        return web.json_response(settings.snapshot())
+
+    async def settings_post(req: web.Request) -> web.json_response:
+        if settings is None:
+            return web.json_response({"error": "settings unavailable"},
+                                     status=503)
+        if not _is_loopback(req):
+            return web.json_response(
+                {"error": "settings can only be changed from this device"},
+                status=403)
+        try:
+            body = await req.json()
+            if not isinstance(body, dict):
+                raise ValueError("request body must be an object")
+            config_values = body.get("config", {})
+            credentials = body.get("credentials", {})
+            if config_values is None:
+                config_values = {}
+            if credentials is None:
+                credentials = {}
+            if not isinstance(config_values, dict):
+                raise ValueError("config must be an object")
+            if not isinstance(credentials, dict):
+                raise ValueError("credentials must be an object")
+            if settings is not None and config_values:
+                old = settings.config
+                if (config_values.get("cloud.allow_text") is True
+                        and old.get("cloud", {}).get("allow_text") is not True
+                        and body.get("text_consent") is not True):
+                    raise ValueError(
+                        "Explicit confirmation is required before cloud text processing.")
+                if (config_values.get("live.allow_audio_upload") is True
+                        and old.get("live", {}).get("allow_audio_upload") is not True
+                        and body.get("audio_consent") is not True):
+                    raise ValueError(
+                        "Explicit confirmation is required before uploading live audio.")
+                if config_values.get("live.enabled") is True:
+                    live_cfg = old.get("live", {})
+                    if (old.get("operating_mode") not in {"cloud", "hybrid", "custom"}
+                            or not live_cfg.get("allow_audio_upload")
+                            or not live_cfg.get("credentials_validated")
+                            or not live_cfg.get("daily_budget_usd")
+                            or not live_cfg.get("monthly_budget_usd")):
+                        raise ValueError(
+                            "Live requires a validated credential, explicit audio consent, "
+                            "a cloud-capable mode, and non-zero daily/monthly budgets.")
+            if config_values:
+                settings.update_config(config_values)
+            if credentials:
+                settings.update_credentials(credentials)
+            snapshot = settings.snapshot()
+            live_security_settings = {
+                "security.auto_approve_until_level",
+                "security.sudo_via_pkexec",
+            }
+            return web.json_response({
+                **snapshot,
+                "restart_required": any(
+                    key not in live_security_settings
+                    for key in config_values) or any(
+                    key.startswith("TELEGRAM_") for key in credentials),
+            })
+        except (ValueError, TypeError) as exc:
+            return web.json_response({"error": str(exc)}, status=400)
+
+    def _is_loopback(req: web.Request) -> bool:
+        if not req.remote:
+            return True
+        try:
+            return ipaddress.ip_address(req.remote).is_loopback
+        except ValueError:
+            return False
+
+    async def voice_health(req: web.Request) -> web.json_response:
+        if not _is_loopback(req):
+            return web.json_response({"error": "local access only"}, status=403)
+
+        def blocking() -> dict:
+            from voice.hardware import detect_hardware, recommend_configuration
+            hardware = detect_hardware(ROOT / "data" / "models")
+            recommendation = recommend_configuration(
+                hardware, languages=voice_settings.get("languages", ["fa"]),
+                purpose=voice_settings.get("purpose", "assistant"),
+                budget=config.get("live", {}).get("budget_preference", "free"))
+            installation = (voice_installer.inventory()
+                            if voice_installer is not None else {})
+            credentials = (voice_secrets.status()
+                           if voice_secrets is not None else
+                           {"backend": "unavailable", "available": False})
+            configured = None
+            if voice_secrets is not None:
+                try:
+                    configured = bool(voice_secrets.get("GEMINI_API_KEY"))
+                except Exception:
+                    configured = None
+            return {
+                "operating_mode": config.get("operating_mode", "local"),
+                "voice": {"mode": voice_settings.get("mode", "local"),
+                          "languages": voice_settings.get("languages", []),
+                          "asr_backend": voice_settings.get("asr_provider",
+                                                             voice_settings.get("stt_backend")),
+                          "tts_backend": voice_settings.get("tts_provider",
+                                                             voice_settings.get("tts_backend")),
+                          "audio_retention_seconds": voice_settings.get(
+                              "audio_retention_seconds", 0)},
+                "live": {"enabled": bool(config.get("live", {}).get("enabled")),
+                         "provider": config.get("live", {}).get("provider"),
+                         "model": config.get("live", {}).get("model"),
+                         "audio_upload_allowed": bool(config.get("live", {}).get(
+                             "allow_audio_upload")),
+                         "credentials_validated": bool(config.get("live", {}).get(
+                             "credentials_validated")),
+                         "gemini_key_configured": configured},
+                "hardware": hardware,
+                "recommendation": recommendation,
+                "installation": installation,
+                "secret_store": credentials,
+            }
+
+        try:
+            result = await asyncio.get_event_loop().run_in_executor(None, blocking)
+        except Exception as exc:  # noqa: BLE001 — diagnostics must not crash the HUD
+            return web.json_response({"error": str(exc)}, status=500)
+        return web.json_response(result)
+
+    async def voice_install(req: web.Request) -> web.json_response:
+        if not _is_loopback(req):
+            return web.json_response({"error": "local access only"}, status=403)
+        if voice_installer is None:
+            return web.json_response({"error": "voice installer unavailable"},
+                                     status=503)
+        try:
+            body = await req.json()
+            if body.get("confirmed") is not True:
+                return web.json_response(
+                    {"error": "explicit install confirmation required"}, status=400)
+            component = str(body.get("component", ""))
+
+            def blocking() -> dict:
+                confirm = lambda _name, _details: True
+                if component in {"vosk_en_small"}:
+                    return voice_installer.install_model(component,
+                                                         confirm=confirm)
+                return voice_installer.install_package(component,
+                                                       confirm=confirm)
+
+            result = await asyncio.get_event_loop().run_in_executor(None, blocking)
+            return web.json_response({"ok": True, "result": result})
+        except Exception as exc:  # noqa: BLE001 — return safe error, no secrets
+            return web.json_response({"error": str(exc)[:500]}, status=400)
+
+    async def voice_secret(req: web.Request) -> web.json_response:
+        if not _is_loopback(req):
+            return web.json_response({"error": "local access only"}, status=403)
+        if voice_secrets is None:
+            return web.json_response({"error": "secure secret store unavailable"},
+                                     status=503)
+        try:
+            body = await req.json()
+            name = str(body.get("name", "GEMINI_API_KEY"))
+            if name != "GEMINI_API_KEY":
+                return web.json_response({"error": "unsupported voice credential"},
+                                         status=400)
+            if body.get("action") == "delete":
+                removed = voice_secrets.delete(name)
+                if settings is not None:
+                    settings.update_config({"live.enabled": False,
+                                            "live.credentials_validated": False})
+                return web.json_response({"ok": True, "configured": False,
+                                          "removed": removed})
+            passphrase = str(body.get("vault_passphrase") or "")
+            if passphrase:
+                create = not voice_secrets.vault_path.exists()
+                voice_secrets.unlock_vault(passphrase, create=create)
+            value = str(body.get("value") or "")
+            voice_secrets.set(name, value)
+            return web.json_response({"ok": True, "configured": True,
+                                      "backend": voice_secrets.status()["backend"]})
+        except Exception as exc:  # noqa: BLE001 — never echo input values
+            safe = str(exc)
+            return web.json_response({"error": safe[:400]}, status=400)
+
+    async def voice_secret_test(req: web.Request) -> web.json_response:
+        if not _is_loopback(req):
+            return web.json_response({"error": "local access only"}, status=403)
+        if voice_secrets is None:
+            return web.json_response({"error": "secure secret store unavailable"},
+                                     status=503)
+        try:
+            api_key = voice_secrets.get("GEMINI_API_KEY")
+            if not api_key:
+                return web.json_response({"error": "Gemini API key is not configured"},
+                                         status=400)
+            from voice.live import GeminiLiveProvider
+            provider = GeminiLiveProvider(
+                api_key, str(config.get("live", {}).get(
+                    "model", "gemini-3.8-live")))
+            result = await asyncio.get_event_loop().run_in_executor(
+                None, provider.validate_credentials)
+            if settings is not None:
+                settings.update_config({
+                    "live.credentials_validated": bool(result.get("ok")),
+                    **({"live.enabled": False} if not result.get("ok") else {}),
+                })
+            return web.json_response(result,
+                                     status=200 if result.get("ok") else 502)
+        except Exception as exc:  # noqa: BLE001 — provider errors are redacted
+            return web.json_response({"ok": False, "error": str(exc)[:400]},
+                                     status=502)
+
     app = web.Application(middlewares=[_utf8_middleware],
                           client_max_size=32 * 1024 * 1024)
     app.router.add_get("/", index)
     app.router.add_get("/api/status", status)
+    app.router.add_get("/api/brief", brief)
     app.router.add_post("/api/chat", chat)
+    app.router.add_post("/api/session/clear", clear_session)
     app.router.add_post("/api/permission", permission_ep)
     app.router.add_post("/api/stt", stt_ep)
     app.router.add_post("/api/tts", tts_ep)
     app.router.add_get("/api/model", model_get)
     app.router.add_post("/api/model", model_post)
+    app.router.add_get("/api/settings", settings_get)
+    app.router.add_post("/api/settings", settings_post)
+    app.router.add_get("/api/voice/health", voice_health)
+    app.router.add_post("/api/voice/install", voice_install)
+    app.router.add_post("/api/voice/secret", voice_secret)
+    app.router.add_post("/api/voice/secret/test", voice_secret_test)
     if STATIC.is_dir():
         app.router.add_get("/static/{name}", static_ep)
         # fonts live one level deeper: /static/fonts/{name}
@@ -548,13 +810,24 @@ def create_app(agent, config: dict) -> web.Application:
     return app
 
 
-def start_web(agent, config: dict):
-    """Start the HUD server on a background thread. Returns runner."""
+def start_web(agent, config: dict, briefing=None, settings=None,
+              voice_installer=None, voice_secrets=None):
+    """Start the local-only HUD server on a background thread."""
     wc = config.get("web", {})
     host = wc.get("host", "127.0.0.1")
     port = int(wc.get("port", 8765))
+    try:
+        loopback_host = ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        loopback_host = str(host).casefold() == "localhost"
+    if not loopback_host:
+        raise RuntimeError(
+            "The HUD has no remote authentication and may only bind to "
+            "localhost or a loopback address.")
     import threading
-    app = create_app(agent, config)
+    app = create_app(agent, config, briefing=briefing, settings=settings,
+                     voice_installer=voice_installer,
+                     voice_secrets=voice_secrets)
     runner = web.AppRunner(app)
     ready = threading.Event()
     err: list[str] = []

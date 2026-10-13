@@ -52,4 +52,5 @@ def announce_sudo(command: str) -> None:
     # No hook registered (headless / plain terminal) — print a clear line
     # so the user knows *why* a password is being asked and for which command.
     import sys
-    print(f"🔐 رمز sudo برای دستور زیر لازم است: {command}", file=sys.stderr, flush=True)
+    print(f"🔐 Sudo password required for this command: {command}",
+          file=sys.stderr, flush=True)

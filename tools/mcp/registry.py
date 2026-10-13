@@ -30,10 +30,12 @@ class MCPRegistry:
     def connected(self) -> list[str]:
         return sorted(self.clients)
 
-    def tool_schemas(self) -> list[dict]:
+    def tool_schemas(self, provider: str | None = None) -> list[dict]:
         """MCP tools in the Ollama function-schema shape for the LLM."""
         out = []
-        for client in self.clients.values():
+        clients = (self.clients.values() if provider is None else
+                   [self.clients[provider]] if provider in self.clients else [])
+        for client in clients:
             for t in client.tools_cache:
                 out.append({
                     "type": "function",
@@ -45,14 +47,19 @@ class MCPRegistry:
                 })
         return out
 
-    def call(self, tool_name: str, arguments: dict) -> dict:
-        client_name = self._tool_map.get(tool_name)
+    def call(self, tool_name: str, arguments: dict,
+             provider: str | None = None) -> dict:
+        client_name = provider or self._tool_map.get(tool_name)
         if not client_name:
             return {"error": f"no MCP server provides tool {tool_name!r}",
                     "blocked": True}
         client = self.clients.get(client_name)
         if not client or not client.connected:
             return {"error": f"MCP server {client_name!r} not connected"}
+        if not any(tool.get("name") == tool_name
+                   for tool in client.tools_cache):
+            return {"error": f"MCP server {client_name!r} does not provide "
+                    f"tool {tool_name!r}", "blocked": True}
         try:
             return client.call(tool_name, arguments)
         except MCPError as e:

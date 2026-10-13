@@ -11,12 +11,232 @@ Uses only the standard library. Optimised for low latency:
 from __future__ import annotations
 
 import json
+import os
 import urllib.request
 import urllib.error
+from typing import Callable
 
 
 class LLMError(RuntimeError):
     pass
+
+
+PROVIDER_FACTORIES: dict[str, Callable[[dict], object]] = {}
+
+
+def register_provider(name: str, factory: Callable[[dict], object]) -> None:
+    """Register a provider factory for use in the providers config section."""
+    PROVIDER_FACTORIES[name] = factory
+
+
+def create_provider(provider_type: str, config: dict):
+    factory = PROVIDER_FACTORIES.get(provider_type)
+    if factory is None:
+        raise LLMError(f"Unknown LLM provider type: {provider_type}")
+    return factory(config)
+
+
+def select_provider_instances(instances: dict, operating_mode: str) -> dict:
+    """Prevent cloud provider construction in explicit local-only mode."""
+    configured = instances if isinstance(instances, dict) else {}
+    if str(operating_mode).casefold() != "local":
+        return dict(configured)
+    return {
+        name: settings for name, settings in configured.items()
+        if ((settings.get("type", name) if isinstance(settings, dict) else name)
+            == "ollama")
+    }
+
+
+class OpenAICompatibleClient:
+    """Adapter for chat-completions APIs compatible with the OpenAI SDK."""
+
+    def __init__(self, api_key: str, base_url: str, model: str,
+                 timeout: int = 90, max_tokens: int = 512,
+                 temperature: float = 0.6):
+        if not api_key:
+            raise LLMError("API key is missing for the configured provider")
+        try:
+            from openai import OpenAI
+        except ImportError as e:
+            raise LLMError(
+                "OpenAI-compatible providers require the 'openai' package") from e
+        self.client = OpenAI(api_key=api_key, base_url=base_url,
+                             timeout=timeout)
+        self.model = model
+        self.timeout = timeout
+        self.max_tokens = max_tokens
+        self.temperature = temperature
+
+    @staticmethod
+    def _response_message(response) -> dict:
+        choice = response.choices[0]
+        message = choice.message
+        calls = []
+        for call in message.tool_calls or []:
+            calls.append({
+                "id": call.id,
+                "type": "function",
+                "function": {
+                    "name": call.function.name,
+                    "arguments": call.function.arguments or "{}",
+                },
+            })
+        return {
+            "message": {"role": "assistant", "content": message.content or "",
+                        "tool_calls": calls},
+            "done": True,
+            "finish_reason": choice.finish_reason,
+        }
+
+    def _completion_options(self, temperature, options):
+        result = {"temperature": (self.temperature if temperature is None
+                                   else temperature),
+                  "max_tokens": self.max_tokens}
+        if options:
+            result.update(options)
+            if "num_predict" in result:
+                result["max_tokens"] = result.pop("num_predict")
+            result.pop("num_ctx", None)
+        return result
+
+    def chat(self, messages: list[dict], tools: list[dict] | None = None,
+             model: str | None = None, temperature: float | None = None,
+             options: dict | None = None) -> dict:
+        params = {
+            "model": model or self.model,
+            "messages": messages,
+            **self._completion_options(temperature, options),
+        }
+        if tools:
+            params["tools"] = tools
+        try:
+            return self._response_message(
+                self.client.chat.completions.create(**params))
+        except Exception as e:  # noqa: BLE001 - normalize SDK/provider errors
+            raise LLMError(f"OpenAI-compatible API error: {e}") from e
+
+    def chat_stream(self, messages: list[dict], tools: list[dict] | None = None,
+                    model: str | None = None, temperature: float | None = None,
+                    options: dict | None = None):
+        params = {
+            "model": model or self.model,
+            "messages": messages,
+            "stream": True,
+            **self._completion_options(temperature, options),
+        }
+        if tools:
+            params["tools"] = tools
+        try:
+            for chunk in self.client.chat.completions.create(**params):
+                choice = chunk.choices[0] if chunk.choices else None
+                delta = getattr(choice, "delta", None)
+                content = getattr(delta, "content", None) if delta else None
+                yield {"message": {"content": content or ""},
+                       "done": bool(choice and choice.finish_reason)}
+        except Exception as e:  # noqa: BLE001 - normalize SDK/provider errors
+            raise LLMError(f"OpenAI-compatible API error: {e}") from e
+
+    def generate(self, prompt: str, model: str | None = None,
+                 temperature: float = 0.6, options: dict | None = None) -> str:
+        response = self.chat([{"role": "user", "content": prompt}],
+                             model=model, temperature=temperature,
+                             options=options)
+        return response["message"]["content"]
+
+    def list_models(self) -> list[str]:
+        return [self.model]
+
+    def warm(self, model: str | None = None) -> None:
+        return None
+
+
+class ProviderClient:
+    """Dispatch the shared LLM interface to named provider clients."""
+
+    def __init__(self, providers: dict, default: str,
+                 configured_models: dict | None = None):
+        self.providers = providers
+        self.default_provider = default
+        self.configured_models = configured_models or {}
+
+    def _resolve(self, model: str | None):
+        requested = model or ""
+        if ":" in requested:
+            name, model_name = requested.split(":", 1)
+            client = self.providers.get(name)
+            if client is not None:
+                return client, model_name
+            if name in self.configured_models:
+                raise LLMError(
+                    f"Provider '{name}' is configured but unavailable; "
+                    "check its API key and provider settings")
+        client = self.providers.get(self.default_provider)
+        if client is None:
+            raise LLMError(f"Default provider is not configured: {self.default_provider}")
+        return client, requested or getattr(client, "model", None)
+
+    @property
+    def model(self):
+        client = self.providers[self.default_provider]
+        return f"{self.default_provider}:{getattr(client, 'model', '')}"
+
+    def chat(self, messages, tools=None, model=None, **kwargs):
+        client, model_name = self._resolve(model)
+        return client.chat(messages, tools=tools, model=model_name, **kwargs)
+
+    def chat_stream(self, messages, tools=None, model=None, **kwargs):
+        client, model_name = self._resolve(model)
+        yield from client.chat_stream(messages, tools=tools, model=model_name,
+                                      **kwargs)
+
+    def generate(self, prompt, model=None, **kwargs):
+        client, model_name = self._resolve(model)
+        return client.generate(prompt, model=model_name, **kwargs)
+
+    def warm(self, model=None):
+        client, model_name = self._resolve(model)
+        client.warm(model_name)
+
+    def list_models(self):
+        models = [f"{name}:{model}"
+                  for name, names in self.configured_models.items()
+                  for model in names]
+        for name, client in self.providers.items():
+            if (name != self.default_provider
+                    and isinstance(client, OllamaClient)
+                    and not OllamaClient(host=client.host,
+                                         timeout=2).is_available()):
+                continue
+            try:
+                models.extend(f"{name}:{model}" for model in client.list_models())
+            except LLMError:
+                continue
+        return list(dict.fromkeys(models))
+
+    def is_available(self):
+        client = self.providers[self.default_provider]
+        return client.is_available() if callable(
+            getattr(client, "is_available", None)) else True
+
+
+def _openai_compatible_factory(config: dict):
+    env_name = config.get("api_key_env", "")
+    api_key = config.get("api_key") or (os.getenv(env_name) if env_name else "")
+    if not api_key:
+        expected = f"{env_name!r}" if env_name else "the configured api_key"
+        raise LLMError(f"API key missing; set environment variable {expected}")
+    return OpenAICompatibleClient(
+        api_key=api_key,
+        base_url=config["base_url"],
+        model=config["model"],
+        timeout=config.get("timeout", 90),
+        max_tokens=config.get("max_tokens", 512),
+        temperature=config.get("temperature", 0.6),
+    )
+
+
+register_provider("openai-compatible", _openai_compatible_factory)
 
 
 def _is_remote(model: str) -> bool:

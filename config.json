@@ -1,8 +1,12 @@
 {
+  "operating_mode": "local",
+  "cloud": {
+    "allow_text": false
+  },
   "agent": {
     "name": "E.V.",
-    "user_name": "Mahdi",
-    "language": "Persian",
+    "user_name": "User",
+    "language": "auto",
     "max_react_iterations": 12,
     "timeout": 180,
     "advisory_auto_approve": false,
@@ -27,21 +31,64 @@
     "default": "minimax-m3:cloud"
   },
   "model_selection": {
-    "mode": "fixed",
-    "fixed": "minimax-m3:cloud",
-    "include_cloud": true
+    "mode": "auto",
+    "fixed": null,
+    "include_cloud": false
   },
   "voice": {
     "enabled": true,
+    "mode": "local",
+    "wizard_language": "auto",
+    "languages": ["fa"],
+    "language": "fa",
+    "asr_provider": "auto",
+    "tts_provider": "piper",
+    "reasoning_provider": "local",
+    "voice_preference": "any",
+    "purpose": "all",
+    "barge_in": true,
+    "vad_enabled": true,
+    "vision_enabled": false,
     "wake_words": [
       "e.v",
       "ای وی"
     ],
+    "wake_language": "fa",
     "stt_backend": "vosk",
     "stt_model": "data/models/vosk-model-small-fa-0.5",
+    "asr_device": "auto",
+    "faster_whisper_model_path": null,
+    "microphone_device": null,
+    "speaker_device": null,
+    "vad_mode": "energy",
+    "vad_frame_ms": 20,
+    "vad_threshold": 180,
+    "vad_hangover_ms": 240,
     "tts_backend": "piper",
     "tts_voice": "fa_IR-amir-medium",
-    "tts_piper_model": "data/models/piper/fa_IR-amir-medium.onnx"
+    "tts_piper_model": "data/models/piper/fa_IR-amir-medium.onnx",
+    "tts_voices": {
+      "fa": "data/models/piper/fa_IR-amir-medium.onnx",
+      "en": null
+    },
+    "allow_cloud_audio": false,
+    "audio_retention_seconds": 0
+  },
+  "live": {
+    "enabled": false,
+    "provider": "gemini",
+    "model": "gemini-3.8-live",
+    "allow_audio_upload": false,
+    "max_session_seconds": 600,
+    "idle_timeout_seconds": 60,
+    "daily_budget_usd": 0.0,
+    "monthly_budget_usd": 0.0,
+    "budget_preference": "free",
+    "estimated_input_usd_per_minute": 0.005,
+    "estimated_output_usd_per_minute": 0.018,
+    "pricing_verified_date": "2026-10-09",
+    "credentials_validated": false,
+    "audio_retention_seconds": 0
   },
   "web": {
     "enabled": true,
@@ -50,24 +97,34 @@
   },
   "memory": {
     "short_term_max_messages": 10,
-    "long_term_db": "data/ev.db"
+    "long_term_db": "data/ev.db",
+    "semantic": {
+      "embed_model": "nomic-embed-text",
+      "skills_top_k": 5
+    }
   },
   "tools": {
     "native": {
       "shell": {
-        "priority": 100
+        "priority": 100,
+        "tools": ["shell_run_command"]
       },
       "filesystem": {
-        "priority": 95
+        "priority": 95,
+        "tools": ["fs_edit_file", "fs_list_directory", "fs_read_file", "fs_search_files", "fs_write_file"]
       },
       "process": {
-        "priority": 90
+        "priority": 90,
+        "tools": ["process_kill", "process_list", "process_start"]
       },
       "services": {
-        "priority": 85
+        "priority": 85,
+        "tools": ["service_restart", "service_start", "service_status", "service_stop"]
       },
       "gpu": {
-        "priority": 80
+        "priority": 80,
+        "tools": ["gpu_status", "gpu_temperature"],
+        "threshold": 90
       }
     },
     "mcp": {
@@ -105,10 +162,80 @@
     "mcp_dir": "mcp_servers"
   },
   "providers": {
-    "default": "ollama:minimax-m3:cloud",
-    "alternates": [
-      "ollama:qwen3:4b"
-    ]
+    "default": "ollama",
+    "instances": {
+      "ollama": {
+        "type": "ollama"
+      },
+      "ashna": {
+        "type": "openai-compatible",
+        "base_url": "https://api.ashna.ai/v1/api",
+        "api_key_env": "ASHNA_API_KEY",
+        "model": "gpt-6-astra",
+        "timeout": 90,
+        "max_tokens": 512,
+        "temperature": 0.7
+      },
+      "openai": {
+        "type": "openai-compatible",
+        "base_url": "https://api.openai.com/v1",
+        "api_key_env": "OPENAI_API_KEY",
+        "model": "gpt-4.1-mini"
+      },
+      "gemini": {
+        "type": "openai-compatible",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "api_key_env": "GEMINI_API_KEY",
+        "model": "gemini-2.5-flash"
+      },
+      "openrouter": {
+        "type": "openai-compatible",
+        "base_url": "https://openrouter.ai/api/v1",
+        "api_key_env": "OPENROUTER_API_KEY",
+        "model": "openrouter/auto"
+      },
+      "groq": {
+        "type": "openai-compatible",
+        "base_url": "https://api.groq.com/openai/v1",
+        "api_key_env": "GROQ_API_KEY",
+        "model": "llama-3.3-70b-versatile"
+      },
+      "deepseek": {
+        "type": "openai-compatible",
+        "base_url": "https://api.deepseek.com/v1",
+        "api_key_env": "DEEPSEEK_API_KEY",
+        "model": "deepseek-chat"
+      },
+      "mistral": {
+        "type": "openai-compatible",
+        "base_url": "https://api.mistral.ai/v1",
+        "api_key_env": "MISTRAL_API_KEY",
+        "model": "mistral-small-latest"
+      },
+      "together": {
+        "type": "openai-compatible",
+        "base_url": "https://api.together.xyz/v1",
+        "api_key_env": "TOGETHER_API_KEY",
+        "model": "meta-llama/Meta-Llama-3.3-70B-Instruct-Turbo"
+      },
+      "xai": {
+        "type": "openai-compatible",
+        "base_url": "https://api.x.ai/v1",
+        "api_key_env": "XAI_API_KEY",
+        "model": "grok-3-mini"
+      },
+      "custom": {
+        "type": "openai-compatible",
+        "base_url": "",
+        "api_key_env": "CUSTOM_LLM_API_KEY",
+        "model": ""
+      }
+    },
+    "preferred": {
+      "fast": "ollama:qwen3.5:4b",
+      "main": "ollama:qwen3.5:4b",
+      "vision": "ollama:qwen3.5:4b"
+    }
   },
   "security": {
     "auto_approve_until_level": 3,

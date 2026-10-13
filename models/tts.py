@@ -10,6 +10,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import tempfile
+import threading
 from pathlib import Path
 
 DEFAULT_VOICE = "fa-IR-FaridNeural"
@@ -115,10 +116,15 @@ class TTSModel:
             self._impl = PiperTTS(model_path=model_path)
         else:
             self._impl = EspeakTTS()
+        self._playback_lock = threading.Lock()
+        self._playback: subprocess.Popen | None = None
+        self._playback_path: Path | None = None
 
     def synthesize(self, text, out_path=None):
         if out_path is None:
-            out_path = str(Path(tempfile.gettempdir()) / "ev_tts")
+            fd, out_path = tempfile.mkstemp(prefix="ev-tts-", suffix=".wav")
+            import os
+            os.close(fd)
         impl = getattr(self, "_impl", None)
         if impl is None:
             try:
@@ -145,18 +151,74 @@ class TTSModel:
         if impl is not None and hasattr(impl, "warm"):
             impl.warm()
 
+    @staticmethod
+    def _player_command(path: Path) -> list[str]:
+        for binary, flags in (
+                ("aplay", ["-q"]),
+                ("ffplay", ["-nodisp", "-autoexit", "-loglevel", "error"]),
+                ("mpv", ["--no-video", "--quiet"]),
+                ("paplay", [])):
+            executable = shutil.which(binary)
+            if executable:
+                return [executable, *flags, str(path)]
+        raise RuntimeError("no audio player found (aplay, ffplay, mpv, paplay)")
+
     def speak(self, text, block=False):
-        wav = self.synthesize(text)
-        player = (shutil.which("aplay") or shutil.which("ffplay")
-                  or shutil.which("mpv") or shutil.which("paplay"))
-        if not player:
-            raise RuntimeError("no audio player found (aplay/ffplay/mpv)")
-        cmd = [player, "-q", str(wav)]
+        self.stop()
+        audio_path = Path(self.synthesize(text))
+        try:
+            command = self._player_command(audio_path)
+        except Exception:
+            audio_path.unlink(missing_ok=True)
+            raise
         if block:
-            subprocess.run(cmd, check=True)
-        else:
-            subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
+            try:
+                subprocess.run(command, check=True)
+            finally:
+                audio_path.unlink(missing_ok=True)
+            return
+        try:
+            proc = subprocess.Popen(command, stdout=subprocess.DEVNULL,
+                                    stderr=subprocess.DEVNULL)
+        except OSError:
+            audio_path.unlink(missing_ok=True)
+            raise
+        with self._playback_lock:
+            self._playback = proc
+            self._playback_path = audio_path
+        threading.Thread(target=self._reap_playback,
+                         args=(proc, audio_path), daemon=True,
+                         name="ev-tts-playback").start()
+
+    def _reap_playback(self, proc: subprocess.Popen, audio_path: Path) -> None:
+        try:
+            proc.wait()
+        finally:
+            audio_path.unlink(missing_ok=True)
+            with self._playback_lock:
+                if self._playback is proc:
+                    self._playback = None
+                    self._playback_path = None
+
+    def stop(self) -> None:
+        with self._playback_lock:
+            proc, path = self._playback, self._playback_path
+            self._playback = None
+            self._playback_path = None
+        if proc is None or proc.poll() is not None:
+            if path:
+                path.unlink(missing_ok=True)
+            return
+        try:
+            proc.terminate()
+            proc.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=2)
+        except OSError:
+            pass
+        if path:
+            path.unlink(missing_ok=True)
 
 
 def test_tts(text="سلام، من در دسترس هستم"):

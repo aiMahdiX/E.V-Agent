@@ -51,7 +51,7 @@ class StubAgent:
     model_router = StubRouter()
     model_override = None
 
-    def run(self, text, on_stream=None, on_step=None):
+    def run(self, text, on_stream=None, on_step=None, session_id="web"):
         if on_step:
             on_step({"step": 1, "tool": "filesystem.list",
                      "args": {"path": "~/Desktop"},
@@ -90,7 +90,7 @@ class PermStubAgent:
         self.model_override = None
         self._PermissionDenied = PermissionDenied
 
-    def run(self, text, on_stream=None, on_step=None):
+    def run(self, text, on_stream=None, on_step=None, session_id="web"):
         try:
             # policy.action_level("delete_file") ->  4 (destructive; the only
             # level still gated under the frictionless-operation rule).
@@ -106,7 +106,58 @@ class PermStubAgent:
 config = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
 config["web"] = {"host": "127.0.0.1", "port": 8799}
 
-from ui.web.server import create_app  # noqa: E402
+from ui.web.server import create_app, start_web  # noqa: E402
+
+
+def test_start_web_forwards_voice_dependencies() -> None:
+    from unittest.mock import patch, sentinel
+
+    class ReadyEvent:
+        def wait(self, timeout=None):
+            return True
+
+    class InertThread:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def start(self):
+            pass
+
+    config = {"web": {"host": "127.0.0.1", "port": 0}}
+    with (patch("ui.web.server.create_app", return_value=sentinel.app) as build,
+          patch("ui.web.server.web.AppRunner", return_value=sentinel.runner),
+          patch("threading.Event", return_value=ReadyEvent()),
+          patch("threading.Thread", InertThread)):
+        runner = start_web(
+            sentinel.agent, config, settings=sentinel.settings,
+            voice_installer=sentinel.installer,
+            voice_secrets=sentinel.secrets,
+        )
+
+    assert runner is sentinel.runner
+    assert build.call_args.kwargs == {
+        "briefing": None,
+        "settings": sentinel.settings,
+        "voice_installer": sentinel.installer,
+        "voice_secrets": sentinel.secrets,
+    }
+
+
+def test_start_web_rejects_unauthenticated_remote_bind() -> None:
+    from unittest.mock import patch
+
+    with patch("ui.web.server.create_app") as build:
+        try:
+            start_web(StubAgent(), {"web": {"host": "0.0.0.0", "port": 8765}})
+        except RuntimeError as exc:
+            assert "no remote authentication" in str(exc)
+        else:
+            raise AssertionError("HUD accepted an unauthenticated remote bind")
+    build.assert_not_called()
+
+
+test_start_web_forwards_voice_dependencies()
+test_start_web_rejects_unauthenticated_remote_bind()
 
 app = create_app(StubAgent(), config)
 
@@ -127,7 +178,8 @@ def serve():
     loop.run_forever()
 
 
-threading.Thread(target=serve, daemon=True).start()
+loop_thread = threading.Thread(target=serve, daemon=True)
+loop_thread.start()
 time.sleep(1.2)
 print("SERVER_UP http://127.0.0.1:8799/")
 
@@ -166,6 +218,11 @@ for f, marker in (("hud.css", "--accent"), ("hud.js", "sendMessage")):
     st, ct, body = get("/static/" + f)
     check(f"GET /static/{f}", st == 200 and marker.encode() in body,
           f"{st} {ct} {len(body)}B")
+st, _, body = get("/static/hud.js")
+check("Voice settings actions rendered",
+      b"Voice diagnostics and components" in body
+      and b"Install English Vosk model" in body
+      and b"Test key" in body)
 
 # 3. path traversal guard
 try:
@@ -183,6 +240,21 @@ check("status cpu numeric (first call)",
       isinstance(d.get("cpu"), (int, float)), f"cpu={d.get('cpu')}")
 check("status gpu.available flag", isinstance(d.get("gpu", {}).get("available"), bool),
       f"gpu={d.get('gpu')}")
+
+# 4c. voice health is local-only diagnostics and does not require optional stores
+st, _, body = get("/api/voice/health")
+voice_health = json.loads(body)
+check("GET /api/voice/health",
+      st == 200 and "hardware" in voice_health
+      and "recommendation" in voice_health
+      and voice_health.get("live", {}).get("enabled") is False)
+
+# 4a. daily brief must fail safely when no external credentials are configured
+st, ct, body = get("/api/brief")
+brief = json.loads(body)
+check("GET /api/brief", st == 200 and isinstance(brief.get("ok"), bool)
+    and ("summary" in brief or "error" in brief),
+    f"ok={brief.get('ok')} tasks={len(brief.get('tasks', []))}")
 
 # 4b. charset on text responses (Persian must never mojibake)
 for path in ("/", "/static/hud.js", "/static/hud.css"):
@@ -361,14 +433,23 @@ seen = {}
 
 
 class HistStubAgent(StubAgent):
-    def run(self, text, on_stream=None, on_step=None, history=None):
+    def run(self, text, on_stream=None, on_step=None, history=None,
+            session_id="web"):
         seen["history"] = history
+        seen["session_id"] = session_id
         if on_stream:
             on_stream("باشه.")
         return "باشه."
 
 
-app3 = create_app(HistStubAgent(), config)
+from memory.long_term import LongTermMemory  # noqa: E402
+
+history_memory = LongTermMemory(str(ROOT / "data" / "logs" / "smoke-history.db"))
+history_memory.delete_session_messages("delete-me")
+history_memory.remember_session_message("delete-me", "user", "old transcript")
+history_agent = HistStubAgent()
+history_agent.episodic = type("Episodic", (), {"base": history_memory})()
+app3 = create_app(history_agent, config)
 runner3 = web.AppRunner(app3)
 
 
@@ -388,6 +469,15 @@ def chat_8801(payload):
     with urllib.request.urlopen(req, timeout=60) as r:
         return r.read().decode("utf-8", "replace")
 
+
+chat_8801({"message": "ادامه بده", "history": [
+    {"role": "user", "content": "ربات تلگرامم بالا نمیاد"},
+    {"role": "assistant", "content": "دارم بررسی می‌کنم."},
+], "session_id": "history-session-42"})
+hist = seen.get("history")
+check("session id passthrough",
+      seen.get("session_id") == "history-session-42",
+      f"session_id={seen.get('session_id')}")
 
 chat_8801({"message": "ادامه بده", "history": [
     {"role": "user", "content": "ربات تلگرامم بالا نمیاد"},
@@ -417,6 +507,34 @@ seen.clear()
 chat_8801({"message": "سلام"})
 check("no history -> not seeded", seen.get("history") is None,
       f"history={seen.get('history')}")
+
+req = urllib.request.Request(
+    "http://127.0.0.1:8801/api/session/clear",
+    data=json.dumps({"session_id": "delete-me"}).encode(),
+    headers={"Content-Type": "application/json"})
+with urllib.request.urlopen(req, timeout=10) as response:
+    deleted = json.loads(response.read())
+check("clear session deletes persisted transcript",
+      deleted.get("ok") and deleted.get("deleted") == 1
+      and not history_memory.search_session_messages("transcript",
+                                                     session_id="delete-me"),
+      str(deleted))
+history_memory.close()
+
+
+async def cleanup_servers():
+    for active_runner in (runner3, runner2, runner):
+        await active_runner.cleanup()
+
+
+try:
+    asyncio.run_coroutine_threadsafe(cleanup_servers(), loop).result(timeout=10)
+finally:
+    loop.call_soon_threadsafe(loop.stop)
+    loop_thread.join(timeout=5)
+    if loop_thread.is_alive():
+        fails.append("web smoke event loop did not stop")
+    loop.close()
 
 print("\n" + ("ALL_WEB_SMOKE_PASS" if not fails else f"FAILED: {fails}"))
 sys.exit(1 if fails else 0)

@@ -1,0 +1,7 @@
+{
+  "name": "messaging",
+  "enabled": true,
+  "command": "python3",
+  "args": ["server.py"],
+  "cwd": "mcp_servers/messaging"
+}

@@ -1,0 +1,2 @@
+# Optional OpenAI-compatible hosted LLM providers.
+openai>=1.0,<4

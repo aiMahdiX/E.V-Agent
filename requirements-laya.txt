@@ -1,0 +1,3 @@
+# Optional structured decision tools via Laya's official MCP server.
+# Installs PyTorch/Transformers; model checkpoints download on first prediction.
+laya[mcp]>=0.4.6

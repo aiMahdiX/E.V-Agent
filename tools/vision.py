@@ -36,7 +36,7 @@ def describe_screen(prompt: str = "describe this screen",
 
 
 def camera_look(index: int = 0,
-                prompt: str = "به فارسی و در حد دو جمله بگو در این تصویر چه می‌بینی",
+                prompt: str = "Briefly describe what is visible in this image.",
                 workspace=None) -> dict:
     """Capture a webcam frame AND describe it in one step.
 
@@ -58,7 +58,8 @@ VISION_TOOLS = [
                      "camera sees. USE THIS when the user says «دوربین رو "
                      "باز کن», «دوربین چی می‌بینی؟», «با دوربین نگاه کن», "
                      "«چی می‌بینی؟». This is about the CAMERA (webcam), "
-                     "NOT the browser — never open websites for this.",
+                     "NOT the browser — never open websites for this. Set "
+                     "the prompt in the same language as the user's request.",
          parameters={"type": "object",
                      "properties": {"index": {"type": "integer"},
                                     "prompt": {"type": "string"}}},
@@ -69,7 +70,8 @@ VISION_TOOLS = [
          description="Describe the contents of an IMAGE FILE (e.g. a saved "
                      "camera frame or screenshot) with the local vision "
                      "model. Use for «این عکس چیه» / describing an existing "
-                     "image path.",
+                     "image path. Set the prompt in the same language as "
+                     "the user's request.",
          parameters={"type": "object",
                      "properties": {"path": {"type": "string"},
                                     "prompt": {"type": "string"}}},
@@ -79,7 +81,8 @@ VISION_TOOLS = [
     Tool(name="vision_screen",
          description="Capture the SCREEN (monitor) and describe what is "
                      "visible. Use when the user says «صفحه رو نگاه کن», "
-                     "«روی صفحه چی هست؟».",
+                     "«روی صفحه چی هست؟». Set the prompt in the same "
+                     "language as the user's request.",
          parameters={"type": "object",
                      "properties": {"prompt": {"type": "string"}}},
          required=[],

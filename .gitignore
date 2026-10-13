@@ -3,16 +3,22 @@ __pycache__/
 *.py[cod]
 .venv/
 *.egg-info/
+.env
 
 # runtime data (models are downloaded by scripts, not committed)
 data/models/
 data/logs/
+data/*.json
+data/memory/
+data/voice/
 data/ev.db
 data/camera/
 data/screenshots/
 *.db
 *.sqlite3
+mcp_servers/*/data/
 
 # editor / os
 .vscode/
 .DS_Store
+/screenshot.png

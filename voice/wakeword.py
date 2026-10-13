@@ -10,6 +10,7 @@ exact matches, phonetic variants, and fuzzy edit-distance proximity.
 from __future__ import annotations
 
 import time
+import threading
 
 from voice import mic
 from voice.stt import VoskSTT
@@ -85,7 +86,8 @@ class WakeWord:
             stt=self.stt, vad=self.vad, timeout=timeout,
             sample_rate=self.sample_rate)
 
-    def wait_for_wake(self, timeout=120.0):
+    def wait_for_wake(self, timeout=120.0,
+                      stop_event: threading.Event | None = None):
         """Continuous listening loop; returns True when wake word is heard.
 
         Uses Vosk streaming ``PartialResult`` for fast wake-word detection:
@@ -108,7 +110,7 @@ class WakeWord:
 
         def on_frame(frame):
             nonlocal outcome, last_partial
-            if outcome:
+            if outcome or (stop_event and stop_event.is_set()):
                 return
             # VAD gate: skip frames that contain no speech energy
             if vad is not None and not vad.feed(frame):
@@ -138,7 +140,8 @@ class WakeWord:
         stream.on_frame(on_frame)
         stream.start()
         try:
-            while not outcome and time.time() - start < timeout:
+            while not outcome and time.time() - start < timeout \
+                    and not (stop_event and stop_event.is_set()):
                 time.sleep(0.02)
         finally:
             stream.stop()

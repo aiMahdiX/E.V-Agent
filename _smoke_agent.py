@@ -104,6 +104,13 @@ with tempfile.TemporaryDirectory() as d:
     # episodic memory recorded the finished task
     eps = long_mem.episodes()
     assert eps and "GPU" in eps[0]["summary"], eps
+    matches = long_mem.search_events("GPU temperature", limit=3)
+    assert matches and matches[0]["score"] >= 1, matches
+    prompt = ctx.system_prompt("GPU temperature")
+    assert "Relevant past events" in prompt and eps[0]["summary"] in prompt
+    assert "Reply in the language used" in prompt
+    assert "current message overrides stored profile facts" in prompt
+    assert "Preferred language:" not in prompt
     # short-term memory kept the exchange for context
     assert len(short_mem.to_list()) >= 2, short_mem.to_list()
     # permissions were audited (2 native tool calls)

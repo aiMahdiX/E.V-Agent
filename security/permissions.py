@@ -19,13 +19,28 @@ class PermissionDenied(Exception):
 
 class PermissionEngine:
     def __init__(self, auto_approve_until: int = 2,
-                 approval: Approval | None = None):
-        self.auto_approve_until = auto_approve_until
+                 approval: Approval | None = None,
+                 config: dict | None = None):
+        self._auto_approve_until = auto_approve_until
+        self.config = config
         self.approval = approval or Approval(confirm=True)
         self.reviewed: list[dict] = []
         # session memory: actions the user approved once stay approved
         # for the rest of the session (keyed by base action name).
         self.approved_actions: dict[str, float] = {}
+
+    @property
+    def auto_approve_until(self) -> int:
+        if self.config is not None:
+            configured = self.config.get("security", {}).get(
+                "auto_approve_until_level", self._auto_approve_until)
+            if isinstance(configured, int) and not isinstance(configured, bool):
+                return configured
+        return self._auto_approve_until
+
+    @auto_approve_until.setter
+    def auto_approve_until(self, value: int) -> None:
+        self._auto_approve_until = int(value)
 
     def _log(self, entry: dict) -> None:
         self.reviewed.append(entry)
@@ -40,28 +55,25 @@ class PermissionEngine:
     def _base(action: str) -> str:
         return action.split("::", 1)[-1] if "::" in action else action
 
-    def authorize(self, action: str, args: dict | None = None) -> int:
+    def authorize(self, action: str, args: dict | None = None, *,
+                  force_approval: bool = False,
+                  level_override: int | None = None) -> int:
         args = args or {}
-        level = policy.action_level(action)
+        level = (level_override if level_override is not None
+                 else policy.action_level(action))
         base = self._base(action)
-        auto_ok = level <= self.auto_approve_until
-        session_ok = (not auto_ok) and base in self.approved_actions
+        requires_approval = force_approval or level >= 3
+        auto_ok = not requires_approval and level <= self.auto_approve_until
+        session_ok = (not requires_approval and not auto_ok
+                      and base in self.approved_actions)
         decision = None
 
         if not auto_ok and not session_ok:
-            # Frictionless-operation policy: only destructive (Level 4)
-            # actions still ask for human approval — everything else runs
-            # automatically.  sudo is *not* gated here: the shell gate lets
-            # Level-3 commands through (see ShellPermissionEngine) and the
-            # password itself is requested at run time by tools/shell.py
-            # (pkexec dialog for web-HUD requests, terminal getpass for REPL).
-            if level >= 4:
-                decision = self.approval.ask(
-                    level=level, action=action, args=args,
-                    auto_approve_until=self.auto_approve_until)
-                if decision:
-                    # remember for the rest of the session — asked once
-                    self.approved_actions[base] = time.time()
+            decision = self.approval.ask(
+                level=level, action=action, args=args,
+                auto_approve_until=self.auto_approve_until)
+            if decision and not requires_approval:
+                self.approved_actions[base] = time.time()
 
         outcome = ("allowed" if (auto_ok or session_ok or decision)
                    else "blocked")
@@ -92,26 +104,7 @@ class ShellPermissionEngine:
 
     def authorize_command(self, command: str) -> int:
         level, reason = policy.classify_shell_command(command)
-        if level <= self.delegate.auto_approve_until:
-            return level
-        if level == 3:
-            # Frictionless-operation policy: Level 3 (sudo / elevated /
-            # unrecognized) runs without a "y/N" gate.  If the command uses
-            # sudo, tools/shell.py requests only the password at execution time
-            # (pkexec dialog via the web bridge, terminal getpass otherwise)).
-            # Truly unrecognized commands run as-is, audited by policy/his log.
-
-            return level
-        key = command.strip()
-        if key in self.approved_commands:
-            return level          # already approved this session
-        decision = self.delegate.approval.ask(
-            level=level, action="shell",
-            args={"command": command, "reason": reason},
-            auto_approve_until=self.delegate.auto_approve_until)
-        if not decision:
-            raise PermissionDenied(
-                f"Shell command blocked: {command!r}\n"
-                f"Reason: {reason} (Level {level}).")
-        self.approved_commands[key] = time.time()
+        self.delegate.authorize(
+            "shell", {"command": command, "reason": reason},
+            force_approval=level >= 3, level_override=level)
         return level

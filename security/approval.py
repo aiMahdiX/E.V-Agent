@@ -8,7 +8,22 @@ Prompt resolution order in :meth:`Approval.ask`:
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any, Callable
+
+_approval_override: ContextVar[Callable[..., Any] | None] = ContextVar(
+    "approval_override", default=None)
+
+
+@contextmanager
+def approval_context(hook: Callable[..., Any]):
+    """Override approval handling only within the current execution context."""
+    token = _approval_override.set(hook)
+    try:
+        yield
+    finally:
+        _approval_override.reset(token)
 
 
 class Approval:
@@ -23,9 +38,10 @@ class Approval:
 
     def ask(self, level: int, action: str, args: dict,
             auto_approve_until: int) -> bool:
-        if self.ask_hook is not None:
+        hook = _approval_override.get() or self.ask_hook
+        if hook is not None:
             try:
-                decision = self.ask_hook(
+                decision = hook(
                     level=level, action=action, args=args,
                     auto_approve_until=auto_approve_until)
             except Exception:  # noqa: BLE001 — the gate must never crash

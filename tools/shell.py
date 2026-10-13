@@ -15,13 +15,20 @@ from security.interactive import (sudo_should_ask_gui, announce_sudo)
 # a GUI dialog — no TTY needed.  If pkexec is missing or no polkit agent
 # can be reached, the original command is run and its real error surfaces.
 # Configured by main.py from ``security.sudo_via_pkexec`` (default true).
-_sudo_via_pkexec = True
+_sudo_via_pkexec: bool | dict = True
 _SUDO_RE = re.compile(r"(?<![\w-])sudo(?![\w-])")
 
 
-def set_sudo_via_pkexec(enabled: bool) -> None:
+def set_sudo_via_pkexec(enabled: bool | dict) -> None:
     global _sudo_via_pkexec
-    _sudo_via_pkexec = bool(enabled)
+    _sudo_via_pkexec = enabled
+
+
+def _use_pkexec() -> bool:
+    if isinstance(_sudo_via_pkexec, dict):
+        return bool(_sudo_via_pkexec.get("security", {}).get(
+            "sudo_via_pkexec", True))
+    return bool(_sudo_via_pkexec)
 
 
 def _execute(command: str, timeout: int, **kw) -> subprocess.CompletedProcess:
@@ -33,7 +40,7 @@ def _execute(command: str, timeout: int, **kw) -> subprocess.CompletedProcess:
 def _sudo_password_from_terminal() -> str:
     """Ask for the sudo password right here on the TTY (REPL channel).)"""
     import getpass
-    return getpass.getpass("رمز sudo را وارد کنید: ")
+    return getpass.getpass("Enter sudo password: ")
 
 
 def run_command(command: str, timeout: int = 60,
@@ -53,7 +60,7 @@ def run_command(command: str, timeout: int = 60,
     # password dialog); terminal (REPL) requests -> sudo -S with an
     # in-terminal getpass prompt — the password is asked in the same
     # channel the request came from, never a generic "y/N" gate.
-    use_pkexec = bool(is_sudo and _sudo_via_pkexec and sudo_should_ask_gui()
+    use_pkexec = bool(is_sudo and _use_pkexec() and sudo_should_ask_gui()
                       and shutil.which("pkexec"))
     executed = command
     run_kw = {}
@@ -65,9 +72,9 @@ def run_command(command: str, timeout: int = 60,
         return {
             "command": command,
             "error": (
-                "🔐 این دستور به رمز sudo نیاز دارد ولی در محیط گرافیکی "
-                "مکانیزم polkit ( pkexec) در دسترس نیست.\n"
-                "لطفاً همین دستور را در ترمینال اجرا کن:\n"
+                "🔐 This command requires a sudo password, but the graphical "
+                "polkit (pkexec) prompt is unavailable.\n"
+                "Run this command in a terminal instead:\n"
                 f"    {command}"),
             "exit_code": None,
             "executor": "blocked-web-no-polkit",

@@ -94,13 +94,25 @@ class MicStream:
 
     def stop(self) -> None:
         self._running = False
-        if self._proc and self._proc.poll() is None:
+        proc, thread = self._proc, self._thread
+        if proc and proc.poll() is None:
             try:
-                self._proc.terminate()
-                self._proc.wait(timeout=2)
-            except Exception:  # noqa: BLE001
+                proc.terminate()
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
                 try:
-                    self._proc.kill()
-                except Exception:  # noqa: BLE001
+                    proc.kill()
+                    proc.wait(timeout=2)
+                except (OSError, subprocess.SubprocessError):
                     pass
+            except OSError:
+                pass
+        if proc and proc.stdout:
+            try:
+                proc.stdout.close()
+            except OSError:
+                pass
+        if thread and thread is not threading.current_thread():
+            thread.join(timeout=2)
         self._proc = None
+        self._thread = None

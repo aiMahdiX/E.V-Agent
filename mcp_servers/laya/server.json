@@ -1,0 +1,6 @@
+{
+  "name": "laya",
+  "enabled": false,
+  "command": "../../.venv/bin/python3",
+  "args": ["launch.py"]
+}

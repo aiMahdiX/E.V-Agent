@@ -39,8 +39,10 @@ class CapabilityManager:
         for tool, opts in native.items():
             prio = opts if isinstance(opts, (int, float)) else \
                 opts.get("priority", 50)
+            tools = opts.get("tools", [tool]) if isinstance(opts, dict) \
+                else [tool]
             cap = Capability(tool, "native", int(prio),
-                             provider="system", tools=[tool])
+                             provider="system", tools=tools)
             self.register(cap)
 
     def load_mcp(self, config: dict) -> None:
@@ -61,6 +63,26 @@ class CapabilityManager:
         self.capabilities[cap.name] = cap
         return cap
 
+    def register_mcp_server(self, name: str, tools: list[str],
+                            default_priority: int = 60) -> None:
+        """Bind a connected server's tools without discarding configured policy."""
+        configured = [cap for cap in self.capabilities.values()
+                      if cap.tool_type == "mcp" and cap.provider == name]
+        if not configured:
+            self.register(Capability(name, "mcp", default_priority,
+                                     provider=name, tools=list(tools),
+                                     needs_approval=True))
+            return
+
+        remaining = set(tools)
+        for cap in configured:
+            cap.tools = sorted(remaining.intersection(cap.tools))
+            remaining.difference_update(cap.tools)
+        if remaining:
+            self.register(Capability(
+                f"{name}:additional", "mcp", default_priority,
+                provider=name, tools=sorted(remaining), needs_approval=True))
+
     # ------------------------------------------------------------ #
     def has(self, name: str) -> bool:
         return name in self.capabilities
@@ -72,20 +94,24 @@ class CapabilityManager:
         return sorted(self.capabilities.values(),
                       key=lambda c: (-c.priority, c.name))
 
-    def by_tool(self, tool_name: str) -> Capability | None:
-        """The capability that owns a given tool (highest priority wins)."""
+    def by_tool(self, tool_name: str,
+                tool_type: str | None = None) -> Capability | None:
+        """Return the highest-priority capability for a registered tool."""
         matches = [c for c in self.capabilities.values()
-                   if tool_name in c.tools]
+                   if tool_name in c.tools
+                   and (tool_type is None or c.tool_type == tool_type)]
         if not matches:
             return None
-        return max(matches, key=lambda c: c.priority)
+        return max(matches, key=lambda c: (c.priority, c.name))
 
     def best_for(self, tool_name: str) -> Capability | None:
         return self.by_tool(tool_name)
 
     def native_tools(self) -> set[str]:
-        return {c.name for c in self.capabilities.values()
-                if c.tool_type == "native" and c.provider == "system"}
+        return {tool for capability in self.capabilities.values()
+            if capability.tool_type == "native"
+            and capability.provider == "system"
+            for tool in capability.tools}
 
     def summary_lines(self) -> list[str]:
         out = ["Capabilities:"]
