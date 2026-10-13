@@ -22,3 +22,4 @@ mcp_servers/*/data/
 .vscode/
 .DS_Store
 /screenshot.png
+data/models/
